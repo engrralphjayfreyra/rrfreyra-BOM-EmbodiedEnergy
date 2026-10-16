@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACFV Construction & Engineering Design Inc. - CAD & BOM Estimator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- SheetJS Library for native XLSX generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+      .canvas-grid {
+          background-image: linear-gradient(to right, #cbd5e1 1px, transparent 1px),
+                            linear-gradient(to bottom, #cbd5e1 1px, transparent 1px);
+          background-size: 25px 25px; /* 1 grid square = 1 meter visually */
+      }
+      .custom-scroll::-webkit-scrollbar { width: 8px; }
+      .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+      .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col md:overflow-hidden overflow-auto">
+
+<!-- HEADER -->
+<header class="bg-slate-800 text-white p-3 shadow-md flex-shrink-0 flex flex-col md:flex-row justify-between items-center z-20 relative gap-3 md:gap-0">
+    <div class="text-center md:text-left">
+        <h1 class="text-lg md:text-xl font-bold tracking-tight text-slate-100">ACFV Construction & Engineering Design Inc.</h1>
+        <p class="text-xs text-slate-400">Orthogonal CAD Plotter, BOM & Lifecycle LCA Analysis</p>
+    </div>
+
+    <div class="flex flex-col items-center justify-center bg-slate-900 border border-slate-700 px-4 py-1 rounded shadow-inner hidden md:flex">
+        <span class="text-[9px] text-slate-400 uppercase tracking-widest mb-0.5">Philippine Standard Time</span>
+        <div id="clockPHT" class="text-sm font-mono font-bold text-amber-400 tracking-wide">Loading...</div>
+    </div>
+
+    <div class="flex items-center bg-slate-900 rounded border border-slate-700 shadow-sm overflow-hidden flex-wrap justify-center">
+        <input type="file" id="loadProjectInput" accept=".json" class="hidden" onchange="loadProjectFile(event)">
+        <button type="button" onclick="document.getElementById('loadProjectInput').click()" class="hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 px-3 transition flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            Load
+        </button>
+        <div class="w-px h-5 bg-slate-700"></div>
+        <button type="button" onclick="saveProjectFile()" class="hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 px-3 transition flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+            Save JSON
+        </button>
+        <div class="w-px h-5 bg-slate-700"></div>
+        <button type="button" onclick="openReportModal()" class="hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 px-3 transition flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Reports
+        </button>
+        <div class="w-px h-5 bg-slate-700"></div>
+        <button type="button" onclick="exportToExcel()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 transition flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export XLSX
+        </button>
+    </div>
+</header>
+
+<div class="flex flex-col md:flex-row flex-1 md:overflow-hidden">
+    <!-- LEFT PANEL: DRAWING TOOLS & EDITORS -->
+    <div class="w-full md:w-80 bg-white shadow-xl flex flex-col md:overflow-y-auto z-10 border-b md:border-b-0 md:border-r border-slate-200 flex-shrink-0">
+        
+        <!-- DRAWING MODE PANEL -->
+        <div class="p-4 border-b border-slate-100">
+            <h2 class="text-base font-bold mb-3 text-slate-800 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
+                Draw Floor Plan
+            </h2>
+            
+            <div class="bg-slate-50 p-3 rounded border border-slate-200 mb-4 text-xs text-slate-600">
+                Set parameters, select a mode to plot. Lines naturally lock to 90° angles and snap to existing corners.
+            </div>
+
+            <div class="space-y-3 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Element Name</label>
+                    <input type="text" id="roomName" placeholder="e.g., Master Bedroom or Fence Wall" class="w-full p-2 border border-slate-300 rounded bg-white text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="flex gap-2">
+                    <div class="w-1/2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Default Height (m)</label>
+                        <input type="number" id="roomHeight" step="0.1" value="3.0" min="0.5" class="w-full p-2 border border-slate-300 rounded bg-white text-sm">
+                    </div>
+                    <div class="w-1/2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Default Type</label>
+                        <select id="roomWallType" class="w-full p-2 border border-slate-300 rounded text-sm bg-white font-medium text-slate-700">
+                            <option value="150">150mm</option>
+                            <option value="100">100mm</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Room Level Waterproof Checkbox -->
+                <div class="mt-2 flex items-center p-2 border border-pink-200 bg-pink-50 rounded">
+                    <input type="checkbox" id="roomWaterproof" class="w-3.5 h-3.5 text-pink-600 rounded accent-pink-600 cursor-pointer">
+                    <label for="roomWaterproof" class="ml-2 text-[10px] font-bold text-pink-700 uppercase cursor-pointer">Waterproof Floor (Bath/Deck)</label>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <div class="flex gap-2" id="drawingButtonGroup">
+                    <button id="btnDrawRoom" type="button" onclick="startDrawing('room')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded shadow transition text-xs flex items-center justify-center gap-1 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z"></path></svg>
+                        Draw Room (Polygon)
+                    </button>
+                    <button id="btnDrawWall" type="button" onclick="startDrawing('wall')" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-2 rounded shadow transition text-xs flex items-center justify-center gap-1 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18"></path></svg>
+                        Draw Wall (Line)
+                    </button>
+                </div>
+                <div class="flex gap-2 hidden" id="activeDrawingControls">
+                    <button id="btnFinishWall" type="button" onclick="finishStandaloneWall()" class="hidden flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-4 rounded shadow transition text-sm cursor-pointer">
+                        ✅ Finish Wall
+                    </button>
+                    <button id="btnCancelDraw" type="button" onclick="cancelDrawing()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 px-4 rounded shadow transition text-sm cursor-pointer">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- WALL SEGMENT EDITOR PANEL -->
+        <div id="edgeEditorPanel" class="p-4 border-b border-slate-200 bg-amber-50 hidden transition-all">
+            <h2 class="text-sm font-bold mb-3 text-slate-800 flex items-center gap-2">
+                ✏️ Edit Selected Wall
+            </h2>
+            <div class="space-y-3">
+                <div class="flex gap-2">
+                    <div class="w-1/2 flex justify-between items-center text-xs text-slate-600 bg-white p-2 rounded border border-amber-300 shadow-inner">
+                        <span class="font-bold">Length:</span>
+                        <input type="number" id="editEdgeLenInput" step="0.01" min="0.1" class="w-16 p-1 border border-slate-300 rounded text-sm font-bold text-amber-700 text-right focus:ring-2 focus:ring-amber-500 outline-none transition" onchange="updateEdgeLength()">
+                    </div>
+                    <div class="w-1/2 flex justify-between items-center text-xs text-slate-600 bg-white p-2 rounded border border-amber-300 shadow-inner" title="Updates the height of the entire room group">
+                        <span class="font-bold">Height:</span>
+                        <input type="number" id="editEdgeHeightInput" step="0.1" min="0.5" class="w-16 p-1 border border-slate-300 rounded text-sm font-bold text-amber-700 text-right focus:ring-2 focus:ring-amber-500 outline-none transition" onchange="updateRoomHeightFromEdge()">
+                    </div>
+                </div>
+                <p class="text-[9px] text-amber-600 italic mt-0 leading-tight">Adjusting length shifts adjacent walls. Adjusting height updates the entire room.</p>
+
+                <div class="flex gap-2">
+                    <div class="w-1/2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Wall Type</label>
+                        <select id="editEdgeType" class="w-full p-2 border border-amber-300 rounded text-[11px] bg-white font-medium focus:ring-2 focus:ring-amber-400 outline-none" onchange="updateSelectedEdgeProps()">
+                            <option value="150">150mm CHB</option>
+                            <option value="100">100mm CHB</option>
+                            <option value="none">Virtual / None</option>
+                        </select>
+                    </div>
+                    <div class="w-1/2">
+                        <label class="block text-[10px] font-bold text-pink-600 uppercase mb-1">Paint Color</label>
+                        <select id="editEdgePaintColor" class="w-full p-2 border border-amber-300 rounded text-[11px] bg-white font-medium focus:ring-2 focus:ring-amber-400 outline-none" onchange="updateSelectedEdgeProps()">
+                            <option value="white">White/Light</option>
+                            <option value="medium">Medium</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deduct Openings</label>
+                    <div class="space-y-2 bg-white p-2 border border-amber-300 rounded shadow-inner">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-600">Doors (2.10 m²)</span>
+                            <input type="number" id="editEdgeDoors" min="0" step="1" value="0" class="w-16 p-1 border rounded text-xs text-center outline-none focus:ring-1 focus:ring-amber-400" onchange="updateSelectedEdgeProps()">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-600">Windows (1.44 m²)</span>
+                            <input type="number" id="editEdgeWindows" min="0" step="1" value="0" class="w-16 p-1 border rounded text-xs text-center outline-none focus:ring-1 focus:ring-amber-400" onchange="updateSelectedEdgeProps()">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-600">Custom Area (m²)</span>
+                            <input type="number" id="editEdgeCustomOpen" min="0" step="0.1" value="0" class="w-16 p-1 border rounded text-xs text-center outline-none focus:ring-1 focus:ring-amber-400" onchange="updateSelectedEdgeProps()">
+                        </div>
+                        <div class="pt-2 mt-2 border-t border-slate-100 flex justify-between items-center">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Total Deducted:</span>
+                            <strong id="editEdgeTotalOpenings" class="text-amber-700 text-xs">0.00 m²</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" onclick="deselectEdge()" class="w-full bg-slate-300 hover:bg-slate-400 text-slate-800 text-xs font-bold py-2 rounded transition cursor-pointer mt-1">
+                    Done Editing
+                </button>
+            </div>
+        </div>
+
+        <!-- GLOBAL ROOF & CEILING SETUP -->
+        <div class="p-4 border-b border-slate-100 bg-slate-50">
+            <h2 class="text-base font-bold mb-3 text-slate-800 flex items-center gap-2">
+                <span class="bg-purple-100 text-purple-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
+                Global Roof & Ceiling
+            </h2>
+            <div class="flex gap-2">
+                <div class="w-1/2">
+                    <label class="block text-[10px] font-bold text-purple-700 uppercase mb-1">Roof Area (m²)</label>
+                    <input type="number" id="roofAreaInput" step="0.1" value="0" min="0" class="w-full p-2 border border-purple-200 rounded bg-white text-sm" oninput="calculateBOM()">
+                </div>
+                <div class="w-1/2">
+                    <label class="block text-[10px] font-bold text-purple-700 uppercase mb-1">Ceil (White) Area (m²)</label>
+                    <input type="number" id="ceilAreaInput" step="0.1" value="0" min="0" class="w-full p-2 border border-purple-200 rounded bg-white text-sm" oninput="calculateBOM()">
+                </div>
+            </div>
+        </div>
+
+        <!-- GLOBAL FINISHES SETUP -->
+        <div class="p-4 border-b border-slate-100 bg-slate-50">
+            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
+                <span class="bg-pink-100 text-pink-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
+                Auto-Calc Finishes Area
+            </h2>
+            
+            <div class="flex gap-2 mb-2">
+                <div class="w-1/2">
+                    <label class="block text-[10px] font-bold text-pink-700 uppercase mb-1">Total Painted Area</label>
+                    <input type="number" id="paintAreaInput" step="0.1" value="0" readonly class="w-full p-2 border border-pink-200 rounded bg-slate-200 text-sm font-bold text-slate-600 outline-none">
+                </div>
+                <div class="w-1/2">
+                    <label class="block text-[10px] font-bold text-pink-700 uppercase mb-1">Waterproof Floor Area</label>
+                    <input type="number" id="waterproofAreaInput" step="0.1" value="0" readonly class="w-full p-2 border border-pink-200 rounded bg-slate-200 text-sm font-bold text-slate-600 outline-none">
+                </div>
+            </div>
+            <p class="text-[9px] text-pink-600 italic leading-tight">Total Painted Area calculates net walls + ceiling. Waterproof area aggregates automatically from rooms checked as waterproof.</p>
+        </div>
+
+        <div class="p-4 flex-1">
+            <h3 class="font-bold text-slate-700 mb-3 text-sm">Project Elements List</h3>
+            <ul id="roomList" class="space-y-2 text-sm pb-6">
+                <li class="text-slate-400 italic text-xs" id="emptyState">No geometries drawn yet.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- MIDDLE PANEL: SVG CANVAS -->
+    <div class="w-full h-[50vh] md:h-auto md:flex-1 bg-slate-100 relative flex flex-col border-b md:border-b-0 flex-shrink-0">
+        <div id="canvasInstruction" class="p-2 bg-slate-800 text-center text-xs font-semibold text-slate-200 shadow-md flex-shrink-0 z-10 relative flex justify-between px-4 transition-colors duration-300">
+            <span>4. Selection: Click items (Shift to multi-select) or Drag Box | Pan: Right-Click Drag</span>
+            <span class="text-slate-400">1 Grid = 1 Sq. Meter</span>
+        </div>
+
+        <!-- FLOATING MULTI-SELECTION TOOLBAR -->
+        <div id="multiSelectionToolbar" class="absolute top-12 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-full shadow-2xl z-30 hidden flex items-center gap-4 transition-all border border-slate-700">
+            <span id="selectionCountLabel" class="text-xs font-bold text-amber-400 tracking-wide">0 Selected</span>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <button onclick="duplicateSelected()" class="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer transition" title="Clone items slightly offset">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                Copy
+            </button>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <!-- NEW MIRROR BUTTONS -->
+            <button onclick="mirrorSelected('H')" class="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer transition" title="Mirror Horizontally across X-Axis">
+                Mirror ↔
+            </button>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <button onclick="mirrorSelected('V')" class="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer transition" title="Mirror Vertically across Y-Axis">
+                Mirror ↕
+            </button>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <button onclick="deleteSelected()" class="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1 cursor-pointer transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Delete
+            </button>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <button onclick="clearSelection()" class="text-xs font-bold text-slate-400 hover:text-white cursor-pointer transition" title="Clear Selection">
+                ✕
+            </button>
+        </div>
+
+        <!-- FLOATING ZOOM BUTTONS -->
+        <div class="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
+            <button type="button" onclick="manualZoom(0.2)" class="bg-white hover:bg-slate-50 text-slate-700 w-10 h-10 rounded-full shadow-lg border border-slate-200 font-bold text-xl flex items-center justify-center cursor-pointer">+</button>
+            <button type="button" onclick="manualZoom(-0.2)" class="bg-white hover:bg-slate-50 text-slate-700 w-10 h-10 rounded-full shadow-lg border border-slate-200 font-bold text-xl flex items-center justify-center cursor-pointer">-</button>
+        </div>
+
+        <!-- THE DRAWING CANVAS -->
+        <div id="canvas" class="flex-1 canvas-grid relative overflow-hidden" style="cursor: grab; touch-action: none;">
+            <div id="canvasInner" style="position: absolute; top: 0; left: 0; transform-origin: top left; width: 4000px; height: 4000px;">
+                <svg id="svgLayer" width="100%" height="100%" style="position: absolute; top: 0; left: 0;">
+                    <g id="completedRooms"></g>
+                    <g id="activeDrawing"></g>
+                    <!-- Drag Selection Box -->
+                    <rect id="selectionBoxRect" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 4" display="none" pointer-events="none" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: BILL OF MATERIALS -->
+    <div class="w-full md:w-[32%] bg-white p-4 shadow-xl md:overflow-y-auto z-10 border-l border-slate-200 space-y-4 flex-shrink-0">
+        <h2 class="text-base font-bold text-emerald-700 flex items-center gap-2 mb-2">
+            <span class="bg-emerald-100 text-emerald-700 w-6 h-6 rounded-full flex items-center justify-center text-xs">5</span> 
+            Live Bill of Materials
+        </h2>
+        
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs font-bold text-slate-500 uppercase">Total Floor Area</span>
+                <span id="totalFloorAreaDisp" class="text-sm font-bold text-slate-800">0.00 m²</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-500 uppercase">Total Net Wall Area</span>
+                <span id="totalNetWallAreaDisp" class="text-sm font-bold text-slate-800">0.00 m²</span>
+            </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <h3 class="font-bold text-slate-700 bg-slate-100 p-2 text-xs uppercase tracking-wide">Concrete Floor Slab (100mm)</h3>
+            <div class="p-3 text-xs space-y-1 bg-white">
+                <div class="flex justify-between"><span>Slab Volume:</span> <strong id="slabVol">0.00 m³</strong></div>
+                <div class="flex justify-between text-blue-700 font-semibold mt-1"><span>Portland Cement (40kg):</span> <strong id="slabCem">0 bags</strong></div>
+                <div class="flex justify-between"><span>Sand:</span> <strong id="slabSand">0.00 m³</strong></div>
+                <div class="flex justify-between"><span>Gravel (3/4"):</span> <strong id="slabGravel">0.00 m³</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-slate-100 text-blue-700 font-semibold"><span>10mm Rebar (6.0m):</span> <strong id="slabRebar">0 pcs</strong></div>
+                <div class="flex justify-between text-blue-700 font-semibold"><span>#16 G.I. Tie Wire:</span> <strong id="slabWire">0.00 kg</strong></div>
+            </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <h3 class="font-bold text-slate-700 bg-slate-100 p-2 text-xs uppercase tracking-wide">Structural Framing (Cols/Beams)</h3>
+            <div class="p-3 text-xs space-y-1 bg-white">
+                <div class="flex justify-between text-slate-500"><span>Identified Nodes (Columns):</span> <strong id="colCountDisp">0 nodes</strong></div>
+                <div class="flex justify-between"><span>Total Concrete Vol:</span> <strong id="framingVolDisp">0.00 m³</strong></div>
+                <div class="flex justify-between mt-1 text-blue-700 font-semibold"><span>Portland Cement (40kg):</span> <strong id="framingCem">0 bags</strong></div>
+                <div class="flex justify-between"><span>Sand:</span> <strong id="framingSand">0.00 m³</strong></div>
+                <div class="flex justify-between"><span>Gravel:</span> <strong id="framingGravel">0.00 m³</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-slate-100 text-blue-700 font-semibold"><span>Total Framing Rebar:</span> <strong id="framingRebar">0 pcs</strong></div>
+                <div class="flex justify-between text-blue-700 font-semibold"><span>Framing Tie Wire:</span> <strong id="framingWire">0.00 kg</strong></div>
+            </div>
+        </div>
+
+        <div class="border border-purple-200 rounded-lg overflow-hidden">
+            <h3 class="font-bold text-purple-900 bg-purple-50 p-2 text-xs uppercase tracking-wide">Roof & Ceiling</h3>
+            <div class="p-3 text-xs space-y-1 bg-white">
+                <div class="flex justify-between"><span>Pre-Painted Roofing Sheet:</span> <strong id="roofSheetDisp">0.00 m²</strong></div>
+                <div class="flex justify-between"><span>Roof Truss/Purlins (Steel):</span> <strong id="roofFramingDisp">0.00 kg</strong></div>
+                <div class="flex justify-between"><span>Tek Screws:</span> <strong id="roofScrewsDisp">0 pcs</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-purple-100 text-purple-800 font-semibold"><span>Fiber Cement Board (4x8):</span> <strong id="ceilBoardDisp">0 pcs</strong></div>
+                <div class="flex justify-between"><span>Metal Furring (5m):</span> <strong id="ceilFurringDisp">0 pcs</strong></div>
+                <div class="flex justify-between"><span>Carrying Channel (5m):</span> <strong id="ceilCarryingDisp">0 pcs</strong></div>
+            </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <h3 class="font-bold text-slate-700 bg-slate-100 p-2 text-xs uppercase tracking-wide">Option A: Solid Concrete Wall</h3>
+            <div class="p-3 text-xs space-y-1 bg-white">
+                <div class="flex justify-between"><span>Concrete Volume:</span> <strong id="volConcrete">0.00 m³</strong></div>
+                <div class="flex justify-between text-blue-700 font-semibold mt-1"><span>Portland Cement (40kg):</span> <strong id="cemConcrete">0 bags</strong></div>
+                <div class="flex justify-between"><span>Sand:</span> <strong id="sandConcrete">0.00 m³</strong></div>
+                <div class="flex justify-between"><span>Gravel:</span> <strong id="gravelConcrete">0.00 m³</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-slate-100 text-blue-700 font-semibold"><span>10mm Rebar (6.0m):</span> <strong id="rcRebar">0 pcs</strong></div>
+                <div class="flex justify-between text-blue-700 font-semibold"><span>#16 G.I. Tie Wire:</span> <strong id="rcWire">0.00 kg</strong></div>
+            </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <h3 class="font-bold text-slate-700 bg-slate-100 p-2 text-xs uppercase tracking-wide">Option B: CHB Masonry Wall</h3>
+            <div class="p-3 text-xs space-y-1 bg-white">
+                <div class="flex justify-between text-blue-700 font-semibold"><span>150mm CHB (pcs):</span> <strong id="chb150Pcs">0 pcs</strong></div>
+                <div class="flex justify-between text-blue-700 font-semibold"><span>100mm CHB (pcs):</span> <strong id="chb100Pcs">0 pcs</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-slate-100"><span>Mortar Cement:</span> <strong id="chbCement">0 bags</strong></div>
+                <div class="flex justify-between"><span>Mortar Sand:</span> <strong id="chbSand">0.00 m³</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-slate-100"><span>10mm Rebar (6.0m):</span> <strong id="chbRebar">0 pcs</strong></div>
+                <div class="flex justify-between"><span>#16 G.I. Tie Wire:</span> <strong id="chbWire">0.00 kg</strong></div>
+            </div>
+        </div>
+
+        <div class="border border-pink-200 rounded-lg overflow-hidden mb-6">
+            <h3 class="font-bold text-pink-900 bg-pink-50 p-2 text-xs uppercase tracking-wide">Architectural Finishes</h3>
+            <div class="p-3 text-xs space-y-1 bg-white">
+                <div class="flex justify-between"><span>Wall/Ceil Skimcoat (20kg):</span> <strong id="finSkim">0 bags</strong></div>
+                <div class="flex justify-between"><span>Paint Primer (Latex):</span> <strong id="finPrimer">0 gals</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-pink-50 text-pink-700 font-semibold"><span>Topcoat (White/Light):</span> <strong id="finTopcoatWhite">0 gals</strong></div>
+                <div class="flex justify-between text-pink-700 font-semibold"><span>Topcoat (Medium):</span> <strong id="finTopcoatMedium">0 gals</strong></div>
+                <div class="flex justify-between text-pink-700 font-semibold"><span>Topcoat (Dark):</span> <strong id="finTopcoatDark">0 gals</strong></div>
+                <div class="flex justify-between mt-1 pt-1 border-t border-pink-100 text-pink-800 font-semibold"><span>Liquid Waterproofing:</span> <strong id="finWaterproof">0 gals</strong></div>
+            </div>
+        </div>
+
+        <button type="button" onclick="clearAll()" class="w-full text-red-500 hover:text-red-700 text-xs font-bold py-2 rounded transition border border-transparent hover:border-red-200 hover:bg-red-50 cursor-pointer">
+            🗑️ Clear All Project Data
+        </button>
+    </div>
+</div>
+
+<!-- MULTI-TAB REPORT MODAL -->
+<div id="reportModal" class="fixed inset-0 bg-slate-900 bg-opacity-80 z-50 hidden items-center justify-center p-2 md:p-6 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-full md:h-[95%] flex flex-col overflow-hidden">
+        <div class="bg-slate-800 text-white flex flex-col flex-shrink-0">
+            <div class="p-4 md:p-5 flex justify-between items-center pb-3">
+                <div>
+                    <h3 class="text-lg md:text-2xl font-bold">Project Reports</h3>
+                    <p class="text-xs text-slate-300 mt-1">ACFV Construction Engineering BOM & LCA Analysis</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="copyTableData()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-2 px-3 rounded transition hidden md:flex items-center gap-1.5 border border-slate-600 cursor-pointer">📋 Copy Data</button>
+                    <button type="button" onclick="closeReportModal()" class="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-2 px-3 rounded transition flex items-center gap-1.5 cursor-pointer">✕ Close</button>
+                </div>
+            </div>
+            <div class="flex px-4 space-x-1 mt-1 overflow-x-auto custom-scroll">
+                <button type="button" onclick="switchTab('tabBom')" id="btn-tabBom" class="px-5 py-2.5 text-sm font-bold bg-white text-slate-800 rounded-t-lg transition whitespace-nowrap">BOM Breakdown</button>
+                <button type="button" onclick="switchTab('tabEE')" id="btn-tabEE" class="px-5 py-2.5 text-sm font-bold bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-t-lg transition whitespace-nowrap">Embodied Energy (LCA)</button>
+                <button type="button" onclick="switchTab('tabStd')" id="btn-tabStd" class="px-5 py-2.5 text-sm font-bold bg-slate-900 text-slate-300 hover:bg-slate-700 rounded-t-lg transition whitespace-nowrap">Standards & Formulas</button>
+            </div>
+        </div>
+        <div class="flex-1 relative bg-slate-50 overflow-hidden">
+            <div id="tabBom" class="absolute inset-0 p-4 md:p-6 overflow-y-auto custom-scroll space-y-6 text-sm block"></div>
+            <div id="tabEE" class="absolute inset-0 p-4 md:p-6 overflow-y-auto custom-scroll space-y-6 text-sm hidden"></div>
+            <div id="tabStd" class="absolute inset-0 p-4 md:p-6 overflow-y-auto custom-scroll space-y-6 text-sm hidden"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- CLOCK ---
+    function updateTime() {
+        const clockEl = document.getElementById('clockPHT');
+        if(!clockEl) return;
+        const now = new Date();
+        const options = { timeZone: 'Asia/Manila', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        clockEl.innerText = now.toLocaleString('en-US', options);
+    }
+    setInterval(updateTime, 1000); updateTime();
+
+    // --- STATE VARIABLES ---
+    let rooms = [];
+    let panX = 0, panY = 0, zoom = 1;
+    let isPanningCanvas = false;
+    let lastMouseX = 0, lastMouseY = 0;
+    
+    let drawingMode = 'none'; // 'none', 'room', 'wall'
+    let currentPoints = [];
+    let previewPoint = null;
+    let selectedRoomId = null;
+    let selectedEdgeId = null;
+    let draggedRoomId = null;
+    let draggedNodeIndex = null;
+
+    // --- MULTI-SELECTION STATE ---
+    let selectedRoomIds = [];
+    let isBoxSelecting = false;
+    let boxStartX = 0, boxStartY = 0;
+    let boxEndX = 0, boxEndY = 0;
+    let isDraggingGroup = false;
+    let lastGroupRawX = 0, lastGroupRawY = 0;
+
+    // --- CANVAS TRANSFORMS ---
+    function updateCanvasTransform() {
+        const canvasArea = document.getElementById('canvas');
+        const inner = document.getElementById('canvasInner');
+        if (canvasArea && inner) {
+            canvasArea.style.backgroundPosition = `${panX}px ${panY}px`;
+            canvasArea.style.backgroundSize = `${25 * zoom}px ${25 * zoom}px`;
+            inner.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+        }
+    }
+    window.addEventListener('DOMContentLoaded', updateCanvasTransform);
+    
+    // Prevent default context menu for right click panning
+    document.getElementById('canvas').addEventListener('contextmenu', e => e.preventDefault());
+
+    // --- ROOM RENAMING & HEIGHT LOGIC ---
+    function renameRoom(roomId, newName) {
+        const room = rooms.find(r => r.id === roomId);
+        if (room) {
+            room.name = newName.trim() || room.name; 
+            updateUI();
+        }
+    }
+
+    function updateRoomHeight(roomId, newHeight) {
+        let h = parseFloat(newHeight);
+        if (!h || h < 0.5) h = 3.0;
+        let room = rooms.find(r => r.id === roomId);
+        if (room) {
+            room.wallHeight = h;
+            room.edges.forEach(e => {
+                let maxOpenings = e.length * room.wallHeight;
+                if (e.openings > maxOpenings) {
+                    e.openings = maxOpenings; e.customOpenings = maxOpenings;
+                    e.doors = 0; e.windows = 0;
+                }
+            });
+            updateUI();
+            if (selectedRoomId === roomId && selectedEdgeId) {
+                document.getElementById('editEdgeHeightInput').value = h.toFixed(2);
+            }
+        }
+    }
+
+    function updateRoomHeightFromEdge() {
+        if (!selectedRoomId) return;
+        const room = rooms.find(r => r.id === selectedRoomId);
+        let newH = parseFloat(document.getElementById('editEdgeHeightInput').value);
+        if (!newH || newH < 0.5) newH = 3.0;
+        room.wallHeight = newH;
+        
+        room.edges.forEach(e => {
+            let maxOpenings = e.length * room.wallHeight;
+            if (e.openings > maxOpenings) {
+                e.openings = maxOpenings; e.customOpenings = maxOpenings;
+                e.doors = 0; e.windows = 0;
+            }
+        });
+        
+        updateUI();
+        document.getElementById('editEdgeHeightInput').value = room.wallHeight.toFixed(2);
+    }
+
+    // --- MULTI-SELECTION & MIRROR LOGIC ---
+    function updateSelectionUI() {
+        const toolbar = document.getElementById('multiSelectionToolbar');
+        const lbl = document.getElementById('selectionCountLabel');
+        if (selectedRoomIds.length > 0) {
+            lbl.innerText = `${selectedRoomIds.length} Selected`;
+            toolbar.classList.remove('hidden');
+        } else {
+            toolbar.classList.add('hidden');
+        }
+    }
+
+    function clearSelection() {
+        selectedRoomIds = [];
+        updateSelectionUI();
+        renderSVG();
+    }
+
+    function deleteSelected() {
+        if (selectedRoomIds.length === 0) return;
+        rooms = rooms.filter(r => !selectedRoomIds.includes(r.id));
+        selectedRoomIds = [];
+        deselectEdge();
+        updateSelectionUI();
+        updateUI();
+    }
+
+    function duplicateSelected() {
+        if (selectedRoomIds.length === 0) return;
+        let newSelected = [];
+        let offset = 75; // px shift down/right
+
+        selectedRoomIds.forEach(id => {
+            let original = rooms.find(r => r.id === id);
+            if (!original) return;
+
+            let newPoints = original.points.map(p => ({ x: p.x + offset, y: p.y + offset }));
+            let newEdges = original.edges.map(e => {
+                let idx1 = original.points.indexOf(e.p1);
+                let idx2 = original.points.indexOf(e.p2);
+                return {
+                    ...e,
+                    id: 'edge_' + Date.now() + '_' + Math.floor(Math.random()*10000),
+                    p1: newPoints[idx1] || newPoints[0],
+                    p2: newPoints[idx2] || newPoints[1]
+                };
+            });
+
+            let newId = (original.isStandalone ? 'wall_' : 'room_') + Date.now() + '_' + Math.floor(Math.random()*10000);
+            
+            let newRoom = {
+                ...original,
+                id: newId,
+                name: original.name + " (Copy)",
+                points: newPoints,
+                edges: newEdges,
+                centerX: original.centerX + offset,
+                centerY: original.centerY + offset
+            };
+
+            rooms.push(newRoom);
+            newSelected.push(newId);
+        });
+        
+        selectedRoomIds = newSelected;
+        deselectEdge();
+        updateSelectionUI();
+        updateUI();
+    }
+
+    function mirrorSelected(axis) {
+        if (selectedRoomIds.length === 0) return;
+        
+        // Find bounding box of entire selection to act as mirror pivot point
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        selectedRoomIds.forEach(id => {
+            let r = rooms.find(rm => rm.id === id);
+            if(r) {
+                r.points.forEach(p => {
+                    if (p.x < minX) minX = p.x;
+                    if (p.x > maxX) maxX = p.x;
+                    if (p.y < minY) minY = p.y;
+                    if (p.y > maxY) maxY = p.y;
+                });
+            }
+        });
+        
+        let CX = (minX + maxX) / 2;
+        let CY = (minY + maxY) / 2;
+        let offsetX = (axis === 'H') ? (maxX - minX) + 50 : 0; 
+        let offsetY = (axis === 'V') ? (maxY - minY) + 50 : 0;
+        
+        let newSelected = [];
+        
+        selectedRoomIds.forEach(id => {
+            let original = rooms.find(r => r.id === id);
+            if (!original) return;
+            
+            // Clone & Mirror Points
+            let newPoints = original.points.map(p => {
+                if (axis === 'H') return { x: CX - (p.x - CX) + offsetX, y: p.y }; // Reflect X
+                return { x: p.x, y: CY - (p.y - CY) + offsetY }; // Reflect Y
+            });
+            
+            // Map mirrored points to new edges
+            let newEdges = original.edges.map(e => {
+                let idx1 = original.points.indexOf(e.p1);
+                let idx2 = original.points.indexOf(e.p2);
+                return {
+                    ...e,
+                    id: 'edge_' + Date.now() + '_' + Math.floor(Math.random()*10000),
+                    p1: newPoints[idx1] || newPoints[0],
+                    p2: newPoints[idx2] || newPoints[1]
+                };
+            });
+            
+            let newId = (original.isStandalone ? 'wall_' : 'room_') + Date.now() + '_' + Math.floor(Math.random()*10000);
+            
+            let newRoom = {
+                ...original,
+                id: newId,
+                name: original.name + " (Mirrored)",
+                points: newPoints,
+                edges: newEdges
+            };
+            recalculateRoomGeometry(newRoom);
+            
+            rooms.push(newRoom);
+            newSelected.push(newId);
+        });
+        
+        selectedRoomIds = newSelected;
+        deselectEdge();
+        updateSelectionUI();
+        updateUI();
+    }
+
+    // --- DRAWING LOGIC ---
+    function startDrawing(mode) {
+        drawingMode = mode;
+        deselectEdge(); 
+        clearSelection();
+        
+        const btnGroup = document.getElementById('drawingButtonGroup');
+        const activeControls = document.getElementById('activeDrawingControls');
+        const btnFinishWall = document.getElementById('btnFinishWall');
+        const canvasArea = document.getElementById('canvas');
+        const instruction = document.getElementById('canvasInstruction');
+        
+        btnGroup.classList.add('hidden');
+        activeControls.classList.remove('hidden');
+        
+        if (mode === 'wall') {
+            btnFinishWall.classList.remove('hidden');
+            instruction.innerHTML = "<span>📍 Plot wall points. Click <b>Finish Wall</b> when done routing the segment.</span>";
+        } else {
+            btnFinishWall.classList.add('hidden');
+            instruction.innerHTML = "<span>📍 Plot corners. Auto-closes when you click near the start point.</span>";
+        }
+        
+        canvasArea.style.cursor = 'crosshair';
+        instruction.classList.replace('bg-slate-800', 'bg-amber-600');
+        currentPoints = [];
+    }
+
+    function cancelDrawing() {
+        drawingMode = 'none';
+        currentPoints = [];
+        previewPoint = null;
+        
+        document.getElementById('drawingButtonGroup').classList.remove('hidden');
+        document.getElementById('activeDrawingControls').classList.add('hidden');
+        
+        const canvasArea = document.getElementById('canvas');
+        const instruction = document.getElementById('canvasInstruction');
+        
+        canvasArea.style.cursor = 'grab';
+        instruction.innerHTML = "<span>4. Selection: Click items (Shift to multi-select) or Drag Box | Pan: Right-Click Drag</span><span class='text-slate-400'>1 Grid = 1 Sq. Meter</span>";
+        instruction.classList.replace('bg-amber-600', 'bg-slate-800');
+        
+        renderSVG();
+    }
+
+    function constrainOrthogonal(room, nodeIndex, newX, newY) {
+        let n = room.points.length;
+        
+        if (room.isStandalone) {
+            let prevI = nodeIndex - 1;
+            let nextI = nodeIndex + 1;
+            
+            let prevIsHoriz = false, nextIsHoriz = false;
+            let prevPt, nextPt;
+            
+            if (prevI >= 0) {
+                prevPt = room.points[prevI];
+                prevIsHoriz = Math.abs(room.points[nodeIndex].y - prevPt.y) < 1;
+            }
+            if (nextI < n) {
+                nextPt = room.points[nextI];
+                nextIsHoriz = Math.abs(nextPt.y - room.points[nodeIndex].y) < 1;
+            }
+            
+            let minWallLen = 25; 
+            let testPrevDist = (prevI >= 0) ? (prevIsHoriz ? Math.abs(newX - prevPt.x) : Math.abs(newY - prevPt.y)) : 100;
+            let testNextDist = (nextI < n) ? (nextIsHoriz ? Math.abs(newX - nextPt.x) : Math.abs(newY - nextPt.y)) : 100;
+            
+            if (testPrevDist < minWallLen || testNextDist < minWallLen) return false;
+
+            room.points[nodeIndex].x = newX;
+            room.points[nodeIndex].y = newY;
+
+            if (prevI >= 0) { if (prevIsHoriz) prevPt.y = newY; else prevPt.x = newX; }
+            if (nextI < n) { if (nextIsHoriz) nextPt.y = newY; else nextPt.x = newX; }
+            return true;
+        } else {
+            let prevI = (nodeIndex - 1 + n) % n;
+            let nextI = (nodeIndex + 1) % n;
+            let prevPt = room.points[prevI];
+            let currPt = room.points[nodeIndex];
+            let nextPt = room.points[nextI];
+
+            let prevIsHoriz = Math.abs(currPt.y - prevPt.y) < 1;
+            let nextIsHoriz = Math.abs(nextPt.y - currPt.y) < 1;
+            let minWallLen = 25; 
+            let testPrevDist = prevIsHoriz ? Math.abs(newX - prevPt.x) : Math.abs(newY - prevPt.y);
+            let testNextDist = nextIsHoriz ? Math.abs(newX - nextPt.x) : Math.abs(newY - nextPt.y);
+            
+            if (testPrevDist < minWallLen || testNextDist < minWallLen) return false;
+
+            currPt.x = newX;
+            currPt.y = newY;
+            if (prevIsHoriz) prevPt.y = newY; else prevPt.x = newX;
+            if (nextIsHoriz) nextPt.y = newY; else nextPt.x = newX;
+            return true;
+        }
+    }
+
+    function getSmartDrawingCoords(rawX, rawY) {
+        let snapX = Math.round(rawX / 25) * 25;
+        let snapY = Math.round(rawY / 25) * 25;
+        let lockX = null, lockY = null;
+        
+        if (currentPoints.length > 0) {
+            let lastPt = currentPoints[currentPoints.length - 1];
+            if (Math.abs(rawX - lastPt.x) > Math.abs(rawY - lastPt.y)) { lockY = lastPt.y; snapY = lockY; } 
+            else { lockX = lastPt.x; snapX = lockX; }
+        }
+        let snapRadius = 15;
+        rooms.forEach(r => {
+            if (r.id === draggedRoomId) return;
+            r.points.forEach(p => {
+                if (lockY !== null && Math.abs(p.x - rawX) < snapRadius) snapX = p.x;
+                else if (lockX !== null && Math.abs(p.y - rawY) < snapRadius) snapY = p.y;
+                else if (lockX === null && lockY === null && Math.hypot(p.x - rawX, p.y - rawY) < snapRadius) { snapX = p.x; snapY = p.y; }
+            });
+            r.edges.forEach(e => {
+                let isHoriz = Math.abs(e.p1.y - e.p2.y) < 1;
+                let isVert = Math.abs(e.p1.x - e.p2.x) < 1;
+                if (lockX !== null && isHoriz) { 
+                    if (Math.abs(e.p1.y - rawY) < snapRadius) {
+                        let minX = Math.min(e.p1.x, e.p2.x) - 10, maxX = Math.max(e.p1.x, e.p2.x) + 10;
+                        if (lockX >= minX && lockX <= maxX) snapY = e.p1.y;
+                    }
+                }
+                if (lockY !== null && isVert) { 
+                    if (Math.abs(e.p1.x - rawX) < snapRadius) {
+                        let minY = Math.min(e.p1.y, e.p2.y) - 10, maxY = Math.max(e.p1.y, e.p2.y) + 10;
+                        if (lockY >= minY && lockY <= maxY) snapX = e.p1.x;
+                    }
+                }
+            });
+        });
+        return { x: snapX, y: snapY };
+    }
+
+    function getMagneticDragSnap(rawX, rawY, excludeIds=[]) {
+        let snapRadius = 15;
+        let closestDist = snapRadius;
+        let targetX = Math.round(rawX / 25) * 25;
+        let targetY = Math.round(rawY / 25) * 25;
+        rooms.forEach(r => {
+            if (excludeIds.includes(r.id)) return; 
+            r.points.forEach(p => {
+                let dist = Math.hypot(p.x - rawX, p.y - rawY);
+                if (dist < closestDist) { closestDist = dist; targetX = p.x; targetY = p.y; }
+            });
+        });
+        return { x: targetX, y: targetY };
+    }
+
+    // --- MOUSE EVENTS ---
+    const canvasArea = document.getElementById('canvas');
+    function getEventXY(e) {
+        if (e.type.includes('touch') && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        return { x: e.clientX, y: e.clientY };
+    }
+
+    canvasArea.addEventListener('mousedown', (e) => {
+        // Panning is Middle Mouse (1) or Right Mouse (2)
+        if (e.button === 1 || e.button === 2) {
+            isPanningCanvas = true;
+            const coords = getEventXY(e);
+            lastMouseX = coords.x; lastMouseY = coords.y;
+            canvasArea.style.cursor = 'grabbing';
+            return;
+        }
+
+        // Only left clicks below
+        if (e.button !== 0 && e.type.includes('mouse')) return;
+        
+        const rect = document.getElementById('canvasInner').getBoundingClientRect();
+        const coords = getEventXY(e);
+        let rawX = (coords.x - rect.left) / zoom;
+        let rawY = (coords.y - rect.top) / zoom;
+
+        if (drawingMode !== 'none') {
+            e.stopPropagation();
+            let smartCoords = getSmartDrawingCoords(rawX, rawY);
+            let snapX = smartCoords.x; let snapY = smartCoords.y;
+
+            if (currentPoints.length > 0) {
+                let lastPt = currentPoints[currentPoints.length - 1];
+                if (Math.hypot(snapX - lastPt.x, snapY - lastPt.y) < 10) return; 
+            }
+            if (drawingMode === 'room' && currentPoints.length > 2) {
+                const startPt = currentPoints[0];
+                if (Math.hypot(snapX - startPt.x, snapY - startPt.y) < 15) { finishRoom(); return; }
+            }
+            currentPoints.push({ x: snapX, y: snapY });
+            renderSVG();
+            return;
+        }
+
+        // --- SELECT MODE ---
+        let tName = e.target.tagName ? e.target.tagName.toLowerCase() : '';
+        
+        // 1. Check if clicking on an entire room/wall to Select/Drag
+        if (tName === 'polygon' || tName === 'polyline') {
+            let rId = e.target.getAttribute('data-selectable-room');
+            if (rId) {
+                if (!e.shiftKey && !selectedRoomIds.includes(rId)) {
+                    selectedRoomIds = [rId];
+                } else if (e.shiftKey && !selectedRoomIds.includes(rId)) {
+                    selectedRoomIds.push(rId);
+                } else if (e.shiftKey && selectedRoomIds.includes(rId)) {
+                    selectedRoomIds = selectedRoomIds.filter(id => id !== rId);
+                    updateSelectionUI(); renderSVG(); return;
+                }
+                
+                isDraggingGroup = true;
+                lastGroupRawX = rawX;
+                lastGroupRawY = rawY;
+                
+                updateSelectionUI();
+                renderSVG();
+                return;
+            }
+        }
+
+        // 2. Node Editing
+        if (tName === 'circle' && e.target.classList.contains('node-handle')) {
+            draggedRoomId = e.target.getAttribute('data-room-id');
+            draggedNodeIndex = parseInt(e.target.getAttribute('data-node-index'));
+            canvasArea.style.cursor = 'grabbing';
+            e.stopPropagation(); return;
+        }
+        
+        // 3. Edge Editing
+        if (tName === 'line' && e.target.hasAttribute('data-edge-id')) {
+            const rId = e.target.getAttribute('data-room-id');
+            const eId = e.target.getAttribute('data-edge-id');
+            selectEdge(rId, eId); return;
+        }
+
+        // 4. Clicked Empty Canvas -> Start Box Select
+        deselectEdge();
+        if (!e.shiftKey) clearSelection();
+        
+        isBoxSelecting = true;
+        boxStartX = rawX; boxStartY = rawY;
+        boxEndX = rawX; boxEndY = rawY;
+        updateSelectionUI();
+        renderSVG();
+    });
+
+    canvasArea.addEventListener('mousemove', (e) => {
+        const coords = getEventXY(e);
+        const rect = document.getElementById('canvasInner').getBoundingClientRect();
+        let rawX = (coords.x - rect.left) / zoom;
+        let rawY = (coords.y - rect.top) / zoom;
+        
+        if (drawingMode !== 'none' && currentPoints.length > 0) {
+            let smartCoords = getSmartDrawingCoords(rawX, rawY);
+            previewPoint = { x: smartCoords.x, y: smartCoords.y };
+            renderSVG(); return;
+        } 
+        
+        if (isBoxSelecting) {
+            boxEndX = rawX; boxEndY = rawY;
+            let selRect = document.getElementById('selectionBoxRect');
+            selRect.setAttribute('x', Math.min(boxStartX, boxEndX));
+            selRect.setAttribute('y', Math.min(boxStartY, boxEndY));
+            selRect.setAttribute('width', Math.abs(boxEndX - boxStartX));
+            selRect.setAttribute('height', Math.abs(boxEndY - boxStartY));
+            selRect.setAttribute('display', 'block');
+            return;
+        }
+
+        if (isDraggingGroup) {
+            let dx = rawX - lastGroupRawX;
+            let dy = rawY - lastGroupRawY;
+            selectedRoomIds.forEach(id => {
+                let r = rooms.find(rm => rm.id === id);
+                if (r) {
+                    r.points.forEach(p => { p.x += dx; p.y += dy; });
+                    r.centerX += dx; r.centerY += dy;
+                }
+            });
+            lastGroupRawX = rawX; lastGroupRawY = rawY;
+            renderSVG();
+            return;
+        }
+
+        if (draggedRoomId !== null && draggedNodeIndex !== null) {
+            e.preventDefault();
+            let magSnap = getMagneticDragSnap(rawX, rawY, [draggedRoomId]);
+            let snapX = magSnap.x; let snapY = magSnap.y;
+            const room = rooms.find(r => r.id === draggedRoomId);
+            if (room) {
+                let success = constrainOrthogonal(room, draggedNodeIndex, snapX, snapY);
+                if (success) {
+                    recalculateRoomGeometry(room); updateUI();
+                    if (selectedRoomId === room.id && selectedEdgeId) {
+                        const edge = room.edges.find(ed => ed.id === selectedEdgeId);
+                        if (edge) document.getElementById('editEdgeLenInput').value = edge.length.toFixed(2);
+                    }
+                }
+            }
+            return;
+        }
+
+        if (isPanningCanvas) {
+            e.preventDefault();
+            panX += (coords.x - lastMouseX); panY += (coords.y - lastMouseY);
+            lastMouseX = coords.x; lastMouseY = coords.y;
+            updateCanvasTransform();
+        }
+    });
+
+    canvasArea.addEventListener('mouseup', () => { 
+        if (isBoxSelecting) {
+            isBoxSelecting = false;
+            document.getElementById('selectionBoxRect').setAttribute('display', 'none');
+            let minX = Math.min(boxStartX, boxEndX);
+            let maxX = Math.max(boxStartX, boxEndX);
+            let minY = Math.min(boxStartY, boxEndY);
+            let maxY = Math.max(boxStartY, boxEndY);
+
+            if (Math.abs(maxX - minX) > 5 && Math.abs(maxY - minY) > 5) {
+                rooms.forEach(r => {
+                    // Check if center is inside the box
+                    if (r.centerX >= minX && r.centerX <= maxX && r.centerY >= minY && r.centerY <= maxY) {
+                        if (!selectedRoomIds.includes(r.id)) selectedRoomIds.push(r.id);
+                    }
+                });
+            }
+            updateSelectionUI();
+            renderSVG();
+        }
+
+        if (isDraggingGroup) {
+            isDraggingGroup = false;
+            // Snap to 25px grid
+            selectedRoomIds.forEach(id => {
+                let r = rooms.find(rm => rm.id === id);
+                if (r) {
+                    r.points.forEach(p => {
+                        p.x = Math.round(p.x / 25) * 25;
+                        p.y = Math.round(p.y / 25) * 25;
+                    });
+                    recalculateRoomGeometry(r);
+                }
+            });
+            updateUI();
+        }
+
+        if (draggedRoomId !== null) { draggedRoomId = null; draggedNodeIndex = null; canvasArea.style.cursor = 'grab'; }
+        if (isPanningCanvas) { isPanningCanvas = false; canvasArea.style.cursor = 'grab'; } 
+    });
+
+    canvasArea.addEventListener('mouseleave', () => { 
+        if (isBoxSelecting) { isBoxSelecting = false; document.getElementById('selectionBoxRect').setAttribute('display', 'none'); renderSVG();}
+        if (isDraggingGroup) { isDraggingGroup = false; updateUI(); }
+        if (draggedRoomId !== null) { draggedRoomId = null; draggedNodeIndex = null; canvasArea.style.cursor = 'grab'; }
+        if (isPanningCanvas) { isPanningCanvas = false; canvasArea.style.cursor = 'grab'; } 
+    });
+
+    canvasArea.addEventListener('touchstart', (e) => {
+        if(e.touches.length === 1) { 
+            const mouseEvent = new MouseEvent('mousedown', { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY, button: 0 });
+            e.target.dispatchEvent(mouseEvent);
+        }
+    }, {passive: false});
+    canvasArea.addEventListener('touchmove', (e) => {
+        if(isPanningCanvas || drawingMode !== 'none' || draggedRoomId || isBoxSelecting || isDraggingGroup) e.preventDefault();
+        if(e.touches.length === 1) {
+            const mouseEvent = new MouseEvent('mousemove', { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+            canvasArea.dispatchEvent(mouseEvent);
+        }
+    }, {passive: false});
+    canvasArea.addEventListener('touchend', (e) => { 
+        const mouseEvent = new MouseEvent('mouseup', {});
+        canvasArea.dispatchEvent(mouseEvent);
+    });
+
+    canvasArea.addEventListener('wheel', (e) => {
+        e.preventDefault(); const oldZoom = zoom;
+        zoom = Math.max(0.1, Math.min(5, zoom + (-e.deltaY * 0.0015))); 
+        const rect = canvasArea.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
+        panX = mouseX - (mouseX - panX) * (zoom / oldZoom); panY = mouseY - (mouseY - panY) * (zoom / oldZoom);
+        updateCanvasTransform();
+    }, { passive: false });
+
+    function manualZoom(delta) {
+        const oldZoom = zoom; zoom = Math.max(0.1, Math.min(5, zoom + delta));
+        const rect = canvasArea.getBoundingClientRect();
+        const cX = rect.width / 2, cY = rect.height / 2;
+        panX = cX - (cX - panX) * (zoom / oldZoom); panY = cY - (cY - panY) * (zoom / oldZoom);
+        updateCanvasTransform();
+    }
+
+    // --- EDGE SELECTION & DIMENSION EDITING LOGIC ---
+    function selectEdge(roomId, edgeId) {
+        const room = rooms.find(r => r.id === roomId); if (!room) return;
+        const edge = room.edges.find(e => e.id === edgeId); if (!edge) return;
+        
+        selectedRoomId = roomId; 
+        selectedEdgeId = edgeId;
+        
+        // Single click edge clears group selection
+        clearSelection();
+
+        document.getElementById('editEdgeLenInput').value = edge.length.toFixed(2);
+        document.getElementById('editEdgeHeightInput').value = room.wallHeight.toFixed(2);
+        document.getElementById('editEdgeType').value = edge.type;
+        document.getElementById('editEdgePaintColor').value = edge.paintColor || 'white';
+        
+        document.getElementById('editEdgeDoors').value = edge.doors || 0;
+        document.getElementById('editEdgeWindows').value = edge.windows || 0;
+        document.getElementById('editEdgeCustomOpen').value = edge.customOpenings || 0;
+        document.getElementById('editEdgeTotalOpenings').innerText = (edge.openings || 0).toFixed(2) + " m²";
+        
+        document.getElementById('edgeEditorPanel').classList.remove('hidden');
+        renderSVG(); 
+    }
+
+    function deselectEdge() {
+        selectedRoomId = null; selectedEdgeId = null;
+        document.getElementById('edgeEditorPanel').classList.add('hidden');
+        renderSVG();
+    }
+
+    function updateEdgeLength() {
+        if (!selectedRoomId || !selectedEdgeId) return;
+        const room = rooms.find(r => r.id === selectedRoomId);
+        const edge = room.edges.find(e => e.id === selectedEdgeId);
+        let newLenMeters = parseFloat(document.getElementById('editEdgeLenInput').value);
+        if (!newLenMeters || newLenMeters < 0.25) { 
+            document.getElementById('editEdgeLenInput').value = edge.length.toFixed(2);
+            return;
+        }
+        let newLenPx = newLenMeters * 25;
+        let dx = edge.p2.x - edge.p1.x; let dy = edge.p2.y - edge.p1.y;
+        let angle = Math.atan2(dy, dx);
+        if (Math.abs(dx) < 1) angle = (dy > 0) ? Math.PI/2 : -Math.PI/2;
+        if (Math.abs(dy) < 1) angle = (dx > 0) ? 0 : Math.PI;
+
+        let newX = edge.p1.x + newLenPx * Math.cos(angle);
+        let newY = edge.p1.y + newLenPx * Math.sin(angle);
+        let p2Index = room.points.findIndex(p => p === edge.p2);
+        
+        let success = constrainOrthogonal(room, p2Index, newX, newY);
+        if (success) { recalculateRoomGeometry(room); updateUI(); } 
+        else { alert("Wall length adjustment blocked to prevent overlapping walls."); }
+        document.getElementById('editEdgeLenInput').value = edge.length.toFixed(2);
+    }
+
+    function updateSelectedEdgeProps() {
+        if (!selectedRoomId || !selectedEdgeId) return;
+        const room = rooms.find(r => r.id === selectedRoomId);
+        const edge = room.edges.find(e => e.id === selectedEdgeId);
+        
+        let newType = document.getElementById('editEdgeType').value;
+        let newPaintColor = document.getElementById('editEdgePaintColor').value;
+        let doors = parseInt(document.getElementById('editEdgeDoors').value) || 0;
+        let windows = parseInt(document.getElementById('editEdgeWindows').value) || 0;
+        let customOp = parseFloat(document.getElementById('editEdgeCustomOpen').value) || 0;
+        
+        let newOpenings = (doors * 2.10) + (windows * 1.44) + customOp;
+        let maxOpenings = edge.length * room.wallHeight;
+        
+        if (newOpenings > maxOpenings) {
+            alert(`Exceeds maximum physical wall area of ${maxOpenings.toFixed(2)}m²! Reverting your last change.`);
+            document.getElementById('editEdgeType').value = edge.type;
+            document.getElementById('editEdgePaintColor').value = edge.paintColor || 'white';
+            document.getElementById('editEdgeDoors').value = edge.doors || 0;
+            document.getElementById('editEdgeWindows').value = edge.windows || 0;
+            document.getElementById('editEdgeCustomOpen').value = edge.customOpenings || 0;
+            return;
+        }
+        
+        document.getElementById('editEdgeTotalOpenings').innerText = newOpenings.toFixed(2) + " m²";
+        
+        edge.type = newType;
+        edge.paintColor = newPaintColor;
+        edge.doors = doors;
+        edge.windows = windows;
+        edge.customOpenings = customOp;
+        edge.openings = newOpenings;
+        updateUI(); 
+    }
+
+    function recalculateRoomGeometry(room) {
+        let perimeterPixels = 0;
+        let minX = room.points[0].x, maxX = room.points[0].x, minY = room.points[0].y, maxY = room.points[0].y;
+        
+        room.edges.forEach(e => {
+            let dx = e.p2.x - e.p1.x; let dy = e.p2.y - e.p1.y;
+            let lenPx = Math.hypot(dx, dy);
+            e.length = lenPx / 25; perimeterPixels += lenPx;
+            let maxOpenings = e.length * room.wallHeight;
+            if (e.openings > maxOpenings) {
+                e.openings = maxOpenings; e.customOpenings = maxOpenings; e.doors = 0; e.windows = 0;
+            }
+        });
+
+        room.perimeter = perimeterPixels / 25;
+
+        if (!room.isStandalone) {
+            let areaPixels = 0;
+            let j = room.points.length - 1;
+            for (let i = 0; i < room.points.length; i++) {
+                areaPixels += (room.points[j].x + room.points[i].x) * (room.points[j].y - room.points[i].y);
+                if (room.points[i].x < minX) minX = room.points[i].x;
+                if (room.points[i].x > maxX) maxX = room.points[i].x;
+                if (room.points[i].y < minY) minY = room.points[i].y;
+                if (room.points[i].y > maxY) maxY = room.points[i].y;
+                j = i;
+            }
+            room.floorArea = Math.abs(areaPixels / 2) / (25 * 25);
+        } else {
+            room.points.forEach(p => {
+                if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+            });
+            room.floorArea = 0;
+        }
+
+        room.centerX = minX + (maxX - minX)/2;
+        room.centerY = minY + (maxY - minY)/2;
+    }
+
+    // --- CORE ROOM CREATION ---
+    function finishRoom() {
+        let areaPixels = 0, perimeterPixels = 0, j = currentPoints.length - 1;
+        let minX = currentPoints[0].x, maxX = currentPoints[0].x, minY = currentPoints[0].y, maxY = currentPoints[0].y;
+        let roomEdges = [];
+        const wType = document.getElementById('roomWallType').value;
+        const isWp = document.getElementById('roomWaterproof') ? document.getElementById('roomWaterproof').checked : false;
+
+        for (let i = 0; i < currentPoints.length; i++) {
+            areaPixels += (currentPoints[j].x + currentPoints[i].x) * (currentPoints[j].y - currentPoints[i].y);
+            let edgeLenPixels = Math.hypot(currentPoints[i].x - currentPoints[j].x, currentPoints[i].y - currentPoints[j].y);
+            perimeterPixels += edgeLenPixels;
+            
+            roomEdges.push({
+                id: 'edge_' + Date.now() + '_' + i,
+                p1: currentPoints[j], p2: currentPoints[i],
+                length: edgeLenPixels / 25, type: wType, paintColor: 'white', 
+                openings: 0, doors: 0, windows: 0, customOpenings: 0
+            });
+            
+            if (currentPoints[i].x < minX) minX = currentPoints[i].x;
+            if (currentPoints[i].x > maxX) maxX = currentPoints[i].x;
+            if (currentPoints[i].y < minY) minY = currentPoints[i].y;
+            if (currentPoints[i].y > maxY) maxY = currentPoints[i].y;
+            j = i;
+        }
+        
+        let areaMeters = Math.abs(areaPixels / 2) / (25 * 25);
+        let perimeterMeters = perimeterPixels / 25;
+        const rName = document.getElementById('roomName').value.trim() || `Room ${rooms.length + 1}`;
+        const wHeight = parseFloat(document.getElementById('roomHeight').value) || 3.0;
+        
+        if (areaMeters < 0.1) { alert("Room area is too small."); cancelDrawing(); return; }
+
+        rooms.push({
+            id: 'room_' + Date.now(),
+            name: rName, points: [...currentPoints], edges: roomEdges,
+            centerX: minX + (maxX - minX)/2, centerY: minY + (maxY - minY)/2,
+            floorArea: areaMeters, perimeter: perimeterMeters, wallHeight: wHeight, totalNetWallArea: 0,
+            isWaterproof: isWp, isStandalone: false
+        });
+        
+        document.getElementById('roomName').value = ''; 
+        if (document.getElementById('roomWaterproof')) document.getElementById('roomWaterproof').checked = false;
+        cancelDrawing(); updateUI();
+    }
+
+    // --- CORE WALL CREATION ---
+    function finishStandaloneWall() {
+        if (currentPoints.length < 2) { 
+            alert("A standalone wall needs at least 2 points."); 
+            return; 
+        }
+        
+        let perimeterPixels = 0;
+        let minX = currentPoints[0].x, maxX = currentPoints[0].x, minY = currentPoints[0].y, maxY = currentPoints[0].y;
+        let roomEdges = [];
+        const wType = document.getElementById('roomWallType').value;
+
+        // Loop stops at length-1 because it doesn't connect back to the start
+        for (let i = 0; i < currentPoints.length - 1; i++) {
+            let p1 = currentPoints[i];
+            let p2 = currentPoints[i+1];
+            let edgeLenPixels = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            perimeterPixels += edgeLenPixels;
+            
+            roomEdges.push({
+                id: 'edge_' + Date.now() + '_' + i,
+                p1: p1, p2: p2,
+                length: edgeLenPixels / 25, type: wType, paintColor: 'white', 
+                openings: 0, doors: 0, windows: 0, customOpenings: 0
+            });
+            
+            if (p2.x < minX) minX = p2.x; if (p2.x > maxX) maxX = p2.x;
+            if (p2.y < minY) minY = p2.y; if (p2.y > maxY) maxY = p2.y;
+        }
+        
+        let perimeterMeters = perimeterPixels / 25;
+        const rName = document.getElementById('roomName').value.trim() || `Wall ${rooms.length + 1}`;
+        const wHeight = parseFloat(document.getElementById('roomHeight').value) || 3.0;
+        
+        rooms.push({
+            id: 'wall_' + Date.now(),
+            name: rName, points: [...currentPoints], edges: roomEdges,
+            centerX: minX + (maxX - minX)/2, centerY: minY + (maxY - minY)/2,
+            floorArea: 0, perimeter: perimeterMeters, wallHeight: wHeight, totalNetWallArea: 0,
+            isWaterproof: false, isStandalone: true
+        });
+        
+        document.getElementById('roomName').value = ''; 
+        if (document.getElementById('roomWaterproof')) document.getElementById('roomWaterproof').checked = false;
+        cancelDrawing(); updateUI();
+    }
+
+    function deleteRoom(id) { 
+        rooms = rooms.filter(r => r.id !== id); 
+        if (selectedRoomId === id) deselectEdge(); updateUI(); 
+    }
+
+    function toggleRoomWaterproof(id, checked) {
+        const room = rooms.find(r => r.id === id);
+        if (room && !room.isStandalone) {
+            room.isWaterproof = checked;
+            updateUI(); 
+        }
+    }
+    
+    function clearAll() {
+        if(confirm("Delete all drawn project data?")) {
+            rooms = []; document.getElementById('roofAreaInput').value = "0"; document.getElementById('ceilAreaInput').value = "0";
+            panX=0; panY=0; zoom=1; deselectEdge(); updateCanvasTransform(); updateUI();
+        }
+    }
+
+    function saveProjectFile() {
+        if (rooms.length === 0) { alert("No project data to save."); return; }
+        const projectData = { 
+            company: "ACFV Construction", version: "26.7 (Per-Room Heights)", savedAt: new Date().toISOString(), 
+            rooms: rooms, roofArea: document.getElementById('roofAreaInput').value, ceilArea: document.getElementById('ceilAreaInput').value
+        };
+        const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = "ACFV_EcoBOM_Project.json";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    function loadProjectFile(event) {
+        if (event.target.files.length === 0) return;
+        const reader = new FileReader();
+        reader.readAsText(event.target.files[0], "UTF-8");
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (parsed.rooms && Array.isArray(parsed.rooms)) {
+                    rooms = parsed.rooms;
+                    rooms.forEach(r => {
+                        r.isWaterproof = r.isWaterproof || false;
+                        r.isStandalone = r.isStandalone || false;
+                        r.wallHeight = r.wallHeight || 3.0;
+                        r.edges.forEach(edge => {
+                            edge.doors = edge.doors || 0; edge.windows = edge.windows || 0; edge.customOpenings = edge.customOpenings || 0;
+                            edge.paintColor = edge.paintColor || 'white';
+                        });
+                    });
+                    document.getElementById('roofAreaInput').value = parsed.roofArea || 0;
+                    document.getElementById('ceilAreaInput').value = parsed.ceilArea || 0;
+                    deselectEdge(); updateUI(); alert("Project loaded successfully!");
+                } else alert("Invalid file structure.");
+            } catch (err) { alert("Error reading file."); }
+            event.target.value = '';
+        };
+    }
+
+    function updateUI() { calculateBOM(); renderList(); renderSVG(); }
+
+    function renderList() {
+        const list = document.getElementById('roomList');
+        if (rooms.length === 0) { list.innerHTML = '<li class="text-slate-400 italic text-xs" id="emptyState">No geometries drawn yet.</li>'; return; }
+        list.innerHTML = '';
+        rooms.forEach(r => {
+            let label = r.isStandalone ? 'Wall Only' : `${r.floorArea.toFixed(1)} m²`;
+            let colorCls = r.isStandalone ? 'text-indigo-600 bg-indigo-50' : 'text-blue-600 bg-blue-50';
+
+            list.innerHTML += `
+            <li class="bg-white p-2.5 rounded border border-slate-200 shadow-sm flex flex-col space-y-1">
+                <div class="flex justify-between items-center">
+                    <input type="text" value="${r.name}" onchange="renameRoom('${r.id}', this.value)" class="font-bold text-slate-700 text-xs bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-slate-50 outline-none w-2/3 px-1 py-0.5 transition-colors" title="Click to rename">
+                    <span class="${colorCls} text-[10px] font-bold px-2 py-0.5 rounded uppercase">${label}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 flex justify-between items-center mt-1 px-1">
+                    <span>L/P: ${r.perimeter.toFixed(1)}m</span>
+                    <label class="flex items-center gap-1 font-bold text-slate-600">H(m): 
+                        <input type="number" step="0.1" min="0.5" value="${r.wallHeight}" onchange="updateRoomHeight('${r.id}', this.value)" class="w-12 px-1 py-0.5 border border-slate-300 rounded focus:border-blue-500 outline-none text-slate-700 bg-slate-50 text-center font-bold shadow-inner" title="Adjust Wall Height">
+                    </label>
+                </div>
+                <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100 px-1">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] font-bold text-emerald-600">Net Wall Area: ${r.totalNetWallArea.toFixed(1)} m²</span>
+                        ${!r.isStandalone ? `
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity">
+                            <input type="checkbox" onchange="toggleRoomWaterproof('${r.id}', this.checked)" ${r.isWaterproof ? 'checked' : ''} class="w-3 h-3 text-pink-600 border-slate-300 rounded focus:ring-pink-500 accent-pink-600 cursor-pointer">
+                            <span class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Waterproof Floor</span>
+                        </label>` : ''}
+                    </div>
+                    <button type="button" onclick="deleteRoom('${r.id}')" class="text-[10px] font-bold text-red-500 hover:text-red-700 uppercase tracking-wide cursor-pointer h-full self-end pb-1">Delete</button>
+                </div>
+            </li>`;
+        });
+    }
+
+    function renderSVG() {
+        const activeGroup = document.getElementById('activeDrawing');
+        const completedGroup = document.getElementById('completedRooms');
+        completedGroup.innerHTML = '';
+        rooms.forEach(r => {
+            let pts = r.points.map(p => `${p.x},${p.y}`).join(' ');
+            
+            let isSelected = selectedRoomIds.includes(r.id);
+            let strokeAttr = isSelected ? `stroke="#a855f7" stroke-width="4" stroke-dasharray="6 4"` : `stroke="none"`;
+
+            if (!r.isStandalone) {
+                let roomFill = r.isWaterproof ? "rgba(186, 230, 253, 0.65)" : "rgba(241, 245, 249, 0.75)";
+                if (isSelected) roomFill = "rgba(192, 132, 252, 0.3)"; // Purple selection tint
+                completedGroup.innerHTML += `<polygon points="${pts}" fill="${roomFill}" ${strokeAttr} style="backdrop-filter: blur(4px); cursor: pointer; pointer-events: all;" data-selectable-room="${r.id}"/>`;
+            } else {
+                // Invisible thicker polyline strictly for catching clicks on standalone walls
+                completedGroup.innerHTML += `<polyline points="${pts}" fill="none" stroke="transparent" stroke-width="20" style="cursor: pointer; pointer-events: stroke;" data-selectable-room="${r.id}"/>`;
+                // Selection outline if selected
+                if (isSelected) {
+                    completedGroup.innerHTML += `<polyline points="${pts}" fill="none" stroke="#a855f7" stroke-width="8" stroke-dasharray="8 4" pointer-events="none"/>`;
+                }
+            }
+
+            r.edges.forEach(edge => {
+                let color = '#94a3b8'; let width = 4; let dash = '';
+                if (edge.type === '150') { color = '#334155'; width = 7; } 
+                if (edge.type === 'none') { color = '#cbd5e1'; width = 2; dash = 'stroke-dasharray="8 6"'; }
+                
+                if (edge.paintColor === 'medium') color = '#0284c7';
+                if (edge.paintColor === 'dark') color = '#be123c';
+
+                if (selectedEdgeId === edge.id) { color = '#f59e0b'; width += 3; dash = ''; }
+
+                completedGroup.innerHTML += `
+                    <line x1="${edge.p1.x}" y1="${edge.p1.y}" x2="${edge.p2.x}" y2="${edge.p2.y}" 
+                        stroke="${color}" stroke-width="${width}" ${dash} 
+                        data-room-id="${r.id}" data-edge-id="${edge.id}" 
+                        style="pointer-events: stroke; cursor: pointer;" class="transition-all duration-200 hover:stroke-amber-400" />
+                `;
+            });
+
+            let floatLabel = r.isStandalone ? r.perimeter.toFixed(1) + 'm' : r.floorArea.toFixed(1) + ' m²';
+            
+            completedGroup.innerHTML += `
+                <g transform="translate(${r.centerX}, ${r.centerY})" pointer-events="none">
+                    <rect x="-40" y="-14" width="80" height="28" fill="${isSelected ? '#f3e8ff':'white'}" rx="4" fill-opacity="0.9" stroke="${isSelected ? '#a855f7':'#cbd5e1'}" stroke-width="1"/>
+                    <text text-anchor="middle" y="-2" fill="#1e293b" font-size="10" font-weight="bold" font-family="sans-serif">${r.name}</text>
+                    <text text-anchor="middle" y="9" fill="#3b82f6" font-size="9" font-family="monospace" font-weight="bold">${floatLabel}</text>
+                </g>
+            `;
+
+            r.points.forEach((p, idx) => {
+                completedGroup.innerHTML += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" class="node-handle transition-all duration-200" data-room-id="${r.id}" data-node-index="${idx}" style="pointer-events: all; cursor: grab;" onmouseover="this.setAttribute('r', '8'); this.setAttribute('fill', '#f59e0b');" onmouseout="this.setAttribute('r', '5'); this.setAttribute('fill', '#3b82f6');" />`;
+            });
+        });
+
+        activeGroup.innerHTML = '';
+        if (currentPoints.length > 0) {
+            let pts = currentPoints.map(p => `${p.x},${p.y}`).join(' ');
+            if (previewPoint) pts += ` ${previewPoint.x},${previewPoint.y}`;
+            activeGroup.innerHTML = `<polyline points="${pts}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-dasharray="6 4" pointer-events="none"/>`;
+            currentPoints.forEach((p, i) => {
+                let color = i === 0 ? "#ef4444" : "#1e40af"; let size = i === 0 ? "6" : "4";
+                activeGroup.innerHTML += `<circle cx="${p.x}" cy="${p.y}" r="${size}" fill="${color}" stroke="white" stroke-width="1.5" pointer-events="none"/>`;
+            });
+        }
+    }
+
+    function calculateFraming() {
+        let uniqueNodes = []; let totalActivePerimeter = 0;
+        rooms.forEach(r => {
+            r.edges.forEach(e => {
+                if (e.type !== 'none') {
+                    totalActivePerimeter += e.length;
+                    
+                    let n1 = uniqueNodes.find(existing => Math.abs(existing.x - e.p1.x) < 5 && Math.abs(existing.y - e.p1.y) < 5);
+                    if (!n1) uniqueNodes.push({x: e.p1.x, y: e.p1.y, height: r.wallHeight});
+                    else if (r.wallHeight > n1.height) n1.height = r.wallHeight; // Keep max height for column
+                    
+                    let n2 = uniqueNodes.find(existing => Math.abs(existing.x - e.p2.x) < 5 && Math.abs(existing.y - e.p2.y) < 5);
+                    if (!n2) uniqueNodes.push({x: e.p2.x, y: e.p2.y, height: r.wallHeight});
+                    else if (r.wallHeight > n2.height) n2.height = r.wallHeight; // Keep max height for column
+                }
+            });
+        });
+        
+        const columnCount = uniqueNodes.length; 
+        
+        let colVol = 0;
+        let colRebarMeters = 0;
+        let colWireKg = 0;
+        
+        uniqueNodes.forEach(n => {
+            colVol += (0.20 * 0.20 * n.height);
+            colRebarMeters += (n.height * 4.0 + 1.0); // 4 bars per col + 1m splice
+            colWireKg += ((n.height / 0.20) * 0.8) / 53.0; // ties
+        });
+
+        const beamVol = totalActivePerimeter * (0.20 * 0.30); 
+        const totalFramingVol = colVol + beamVol;
+        let totalBeamRebarMeters = totalActivePerimeter * 4.0 + 2.0;
+        let beamWireKg = (totalActivePerimeter * (3.0 * 0.8)) / 53.0;
+        
+        return {
+            columnCount, colVol, beamVol, totalFramingVol, 
+            framingCem: Math.ceil(totalFramingVol * 9.0),
+            framingSand: totalFramingVol * 0.50, 
+            framingGravel: totalFramingVol * 1.00,
+            totalFramingRebarPcs: Math.ceil((colRebarMeters + totalBeamRebarMeters) / 6.0),
+            framingWire: colWireKg + beamWireKg
+        };
+    }
+
+    function calculateBOM() {
+        let totalFloorArea = 0, netArea150 = 0, netArea100 = 0, totalNetWallArea = 0;
+        let paintWhiteWall = 0, paintMediumWall = 0, paintDarkWall = 0;
+        let totalWaterproofArea = 0;
+
+        rooms.forEach(r => {
+            totalFloorArea += r.floorArea; let rNetWall = 0;
+            
+            if (r.isWaterproof && !r.isStandalone) {
+                totalWaterproofArea += r.floorArea;
+            }
+
+            r.edges.forEach(e => {
+                if (e.type !== 'none') {
+                    let eNet = Math.max(0, (e.length * r.wallHeight) - e.openings);
+                    rNetWall += eNet;
+                    if (e.type === '150') netArea150 += eNet;
+                    if (e.type === '100') netArea100 += eNet;
+                    
+                    if (e.paintColor === 'medium') paintMediumWall += eNet;
+                    else if (e.paintColor === 'dark') paintDarkWall += eNet;
+                    else paintWhiteWall += eNet;
+                }
+            });
+            r.totalNetWallArea = rNetWall; totalNetWallArea += rNetWall;
+        });
+
+        document.getElementById('totalFloorAreaDisp').innerText = `${totalFloorArea.toFixed(2)} m²`;
+        document.getElementById('totalNetWallAreaDisp').innerText = `${totalNetWallArea.toFixed(2)} m²`;
+
+        const wpInput = document.getElementById('waterproofAreaInput');
+        if (wpInput) wpInput.value = totalWaterproofArea.toFixed(1);
+
+        if (totalFloorArea === 0 && totalNetWallArea === 0) { resetBOM(); return; }
+
+        const slabVol = totalFloorArea * 0.10;
+        document.getElementById('slabVol').innerText = `${slabVol.toFixed(2)} m³`;
+        document.getElementById('slabCem').innerText = `${Math.ceil(slabVol * 9.0)} bags`;
+        document.getElementById('slabSand').innerText = `${(slabVol * 0.5).toFixed(2)} m³`;
+        document.getElementById('slabGravel').innerText = `${(slabVol * 1.0).toFixed(2)} m³`;
+        document.getElementById('slabRebar').innerText = `${Math.ceil((totalFloorArea * 8.0) / 6.0)} pcs`;
+        document.getElementById('slabWire').innerText = `${((totalFloorArea / 100) * 2.0).toFixed(2)} kg`;
+
+        const framing = calculateFraming();
+        document.getElementById('colCountDisp').innerText = `${framing.columnCount} nodes`;
+        document.getElementById('framingVolDisp').innerText = `${framing.totalFramingVol.toFixed(2)} m³`;
+        document.getElementById('framingCem').innerText = `${framing.framingCem} bags`;
+        document.getElementById('framingSand').innerText = `${framing.framingSand.toFixed(2)} m³`;
+        document.getElementById('framingGravel').innerText = `${framing.framingGravel.toFixed(2)} m³`;
+        document.getElementById('framingRebar').innerText = `${framing.totalFramingRebarPcs} pcs`;
+        document.getElementById('framingWire').innerText = `${framing.framingWire.toFixed(2)} kg`;
+
+        const roofArea = parseFloat(document.getElementById('roofAreaInput').value) || 0;
+        const ceilArea = parseFloat(document.getElementById('ceilAreaInput').value) || 0;
+        document.getElementById('roofSheetDisp').innerText = `${roofArea.toFixed(2)} m²`;
+        document.getElementById('roofFramingDisp').innerText = `${(roofArea * 12.0).toFixed(2)} kg`;
+        document.getElementById('roofScrewsDisp').innerText = `${Math.ceil(roofArea * 12.0)} pcs`;
+        document.getElementById('ceilBoardDisp').innerText = `${Math.ceil((ceilArea / 2.88) * 1.10)} pcs`;
+        document.getElementById('ceilFurringDisp').innerText = `${Math.ceil(ceilArea * 0.60)} pcs`;
+        document.getElementById('ceilCarryingDisp').innerText = `${Math.ceil(ceilArea * 0.25)} pcs`;
+
+        const vol = (netArea150 * 0.15) + (netArea100 * 0.10);
+        document.getElementById('volConcrete').innerText = `${vol.toFixed(2)} m³`;
+        document.getElementById('cemConcrete').innerText = `${Math.ceil(vol * 9.0)} bags`;
+        document.getElementById('sandConcrete').innerText = `${(vol * 0.5).toFixed(2)} m³`;
+        document.getElementById('gravelConcrete').innerText = `${(vol * 1.0).toFixed(2)} m³`;
+        document.getElementById('rcRebar').innerText = `${Math.ceil((totalNetWallArea * 10.0) / 6.0)} pcs`;
+        document.getElementById('rcWire').innerText = `${((totalNetWallArea / 100) * 3.0).toFixed(2)} kg`;
+
+        document.getElementById('chb150Pcs').innerText = `${Math.ceil(netArea150 * 12.5)} pcs`;
+        document.getElementById('chb100Pcs').innerText = `${Math.ceil(netArea100 * 12.5)} pcs`;
+        const totalCement = (netArea150 * 0.792) + (netArea100 * 0.533);
+        document.getElementById('chbCement').innerText = `${Math.ceil(totalCement)} bags`;
+        document.getElementById('chbSand').innerText = `${((netArea150 * 0.084) + (netArea100 * 0.043)).toFixed(2)} m³`;
+        document.getElementById('chbRebar').innerText = `${Math.ceil((totalNetWallArea * 2.93) / 6.0)} pcs`;
+        document.getElementById('chbWire').innerText = `${((totalNetWallArea / 100) * 1.5).toFixed(2)} kg`;
+
+        // DYNAMIC FINISHES WITH INDIVIDUAL WALL COLORS
+        const totalWhiteArea = ceilArea + (paintWhiteWall * 2);
+        const totalMediumArea = (paintMediumWall * 2);
+        const totalDarkArea = (paintDarkWall * 2);
+        const totalPaintArea = totalWhiteArea + totalMediumArea + totalDarkArea;
+
+        document.getElementById('paintAreaInput').value = totalPaintArea.toFixed(1);
+
+        document.getElementById('finSkim').innerText = `${Math.ceil(totalPaintArea / 20)} bags`;
+        document.getElementById('finPrimer').innerText = `${Math.ceil(totalPaintArea / 30)} gals`;
+        
+        document.getElementById('finTopcoatWhite').innerText = `${Math.ceil((totalWhiteArea * 2) / 30)} gals`;
+        document.getElementById('finTopcoatMedium').innerText = `${Math.ceil((totalMediumArea * 2) / 30)} gals`;
+        document.getElementById('finTopcoatDark').innerText = `${Math.ceil((totalDarkArea * 3) / 30)} gals`;
+        
+        document.getElementById('finWaterproof').innerText = `${Math.ceil(totalWaterproofArea / 4)} gals`;
+    }
+
+    function resetBOM() {
+        ['slabVol', 'slabCem', 'slabSand', 'slabGravel', 'slabRebar', 'slabWire', 'colCountDisp', 'framingVolDisp', 'framingCem', 'framingSand', 'framingGravel', 'framingRebar', 'framingWire', 'volConcrete', 'cemConcrete', 'sandConcrete', 'gravelConcrete', 'rcRebar', 'rcWire', 'chb150Pcs', 'chb100Pcs', 'chbCement', 'chbSand', 'chbRebar', 'chbWire', 'finSkim', 'finPrimer', 'finTopcoatWhite', 'finTopcoatMedium', 'finTopcoatDark', 'finWaterproof'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.innerText = id.includes('pcs')||id.includes('Rebar')?'0 pcs':id.includes('Wire')?'0.00 kg':id.includes('cem')||id.includes('Cem')||id.includes('Skim')?'0 bags':id.includes('Count')?'0 nodes':id.includes('fin')?'0 gals':'0.00 m³';
+        });
+        document.getElementById('roofSheetDisp').innerText = "0.00 m²"; document.getElementById('roofFramingDisp').innerText = "0.00 kg";
+        document.getElementById('roofScrewsDisp').innerText = "0 pcs"; document.getElementById('ceilBoardDisp').innerText = "0 pcs";
+        document.getElementById('ceilFurringDisp').innerText = "0 pcs"; document.getElementById('ceilCarryingDisp').innerText = "0 pcs";
+        document.getElementById('paintAreaInput').value = "0";
+        if (document.getElementById('waterproofAreaInput')) document.getElementById('waterproofAreaInput').value = "0";
+    }
+
+    let activeTabId = 'tabBom';
+    function switchTab(target) {
+        ['tabBom', 'tabEE', 'tabStd'].forEach(id => {
+            document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('block');
+            const b = document.getElementById('btn-' + id);
+            b.classList.remove('bg-white', 'text-slate-800'); b.classList.add('bg-slate-900', 'text-slate-300');
+        });
+        document.getElementById(target).classList.remove('hidden'); document.getElementById(target).classList.add('block');
+        const act = document.getElementById('btn-' + target);
+        act.classList.remove('bg-slate-900', 'text-slate-300'); act.classList.add('bg-white', 'text-slate-800');
+        activeTabId = target;
+    }
+
+    function closeReportModal() { document.getElementById('reportModal').classList.replace('flex', 'hidden'); }
+    function copyTableData() {
+        const c = document.getElementById(activeTabId); const r = document.createRange(); r.selectNode(c);
+        window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+        try { document.execCommand('copy'); alert("Copied to clipboard! You can paste this into Excel."); } catch (e) { alert("Copy failed."); }
+        window.getSelection().removeAllRanges();
+    }
+
+    function openReportModal() {
+        if (rooms.length === 0) { 
+            alert("Please draw a room or wall first before exporting to Excel."); 
+            return; 
+        }
+
+        let tf = 0, n150 = 0, n100 = 0, tnw = 0;
+        let paintWhiteWall = 0, paintMediumWall = 0, paintDarkWall = 0;
+        let totalWaterproofArea = 0;
+
+        rooms.forEach(r => {
+            tf += r.floorArea; 
+            if (r.isWaterproof && !r.isStandalone) totalWaterproofArea += r.floorArea;
+
+            r.edges.forEach(e => {
+                if(e.type !== 'none') {
+                    let eNet = Math.max(0, (e.length * r.wallHeight) - e.openings);
+                    tnw += eNet;
+                    if(e.type === '150') n150 += eNet;
+                    if(e.type === '100') n100 += eNet;
+
+                    if (e.paintColor === 'medium') paintMediumWall += eNet;
+                    else if (e.paintColor === 'dark') paintDarkWall += eNet;
+                    else paintWhiteWall += eNet;
+                }
+            });
+        });
+
+        const sv = tf*0.1, fr = calculateFraming(), vSol = (n150*0.15)+(n100*0.1);
+        const qc_slab=Math.ceil(sv*9), qs_slab=sv*0.5, qg_slab=sv*1, qr_slab=Math.ceil((tf*8)/6), qw_slab=(tf/100)*2;
+        const rfArea = parseFloat(document.getElementById('roofAreaInput').value)||0, clArea = parseFloat(document.getElementById('ceilAreaInput').value)||0;
+        const q_rf=rfArea, q_rfkg=rfArea*12, q_rscrew=Math.ceil(rfArea*12), q_cb=Math.ceil((clArea/2.88)*1.1), q_cf=Math.ceil(clArea*0.6), q_cc=Math.ceil(clArea*0.25);
+        const qc_wa=Math.ceil(vSol*9), qs_wa=vSol*0.5, qg_wa=vSol*1, qr_wa=Math.ceil((tnw*10)/6), qw_wa=(tnw/100)*3;
+        const qc_150=Math.ceil(n150*12.5), qc_100=Math.ceil(n100*12.5), qmc_wb=Math.ceil(n150*0.792+n100*0.533), qms_wb=n150*0.084+n100*0.043, qr_wb=Math.ceil((tnw*2.93)/6), qw_wb=(tnw/100)*1.5;
+
+        // Dynamic Finishes & LCA Pigment Logic
+        const totalWhiteArea = clArea + (paintWhiteWall * 2);
+        const totalMediumArea = (paintMediumWall * 2);
+        const totalDarkArea = (paintDarkWall * 2);
+        const totalPaintArea = totalWhiteArea + totalMediumArea + totalDarkArea;
+
+        const q_skim = Math.ceil(totalPaintArea / 20);
+        const q_primer = Math.ceil(totalPaintArea / 30);
+        const q_topcoatWhite = Math.ceil((totalWhiteArea * 2) / 30);
+        const q_topcoatMedium = Math.ceil((totalMediumArea * 2) / 30);
+        const q_topcoatDark = Math.ceil((totalDarkArea * 3) / 30);
+        const q_waterproof = Math.ceil(totalWaterproofArea / 4);
+
+        const EE_CEMENT = 5.50, EE_SAND = 0.10, EE_GRAVEL = 0.10, EE_REBAR = 24.00, EE_WIRE = 30.00;
+        const EE_CHB = 2.00, EE_SHEET = 35.00, EE_FIBER = 9.50, EE_STEEL_LIGHT = 30.00;
+        const EE_WP = 50.00;
+        const EE_PAINT_PRIMER = 55.00; 
+        const EE_PAINT_WHITE = 55.00, EE_PAINT_MEDIUM = 45.00, EE_PAINT_DARK = 35.00; 
+
+        const eeSlabCem = qc_slab*40, eeSlabSand = qs_slab*1600, eeSlabGravel = qg_slab*1500, eeSlabRebar = qr_slab*3.7, eeSlabWire = qw_slab*1.0;
+        const eeFrameCem = fr.framingCem*40, eeFrameSand = fr.framingSand*1600, eeFrameGravel = fr.framingGravel*1500, eeFrameRebar = fr.totalFramingRebarPcs*3.7, eeFrameWire = fr.framingWire*1.0;
+        const eeRoofSheet = q_rf*3.5, eeRoofFraming = q_rfkg, eeRoofScrews = q_rscrew*0.005, eeCeilBoard = q_cb*20, eeCeilFurr = q_cf*1.5, eeCeilCarry = q_cc*2.0;
+        const eeWallCemA = qc_wa*40, eeWallSandA = qs_wa*1600, eeWallGravelA = qg_wa*1500, eeWallRebarA = qr_wa*3.7, eeWallWireA = qw_wa*1.0;
+        const eeChb150 = qc_150*12.0, eeChb100 = qc_100*8.0, eeMortarCemB = qmc_wb*40, eeMortarSandB = qms_wb*1600, eeWallRebarB = qr_wb*3.7, eeWallWireB = qw_wb*1.0;
+        
+        // Finishes EE (Assume 1 gal = ~5.0kg)
+        const eeSkim = q_skim*20.0, eePrimer = q_primer*5.0, eeWaterproof = q_waterproof*5.0;
+        const eeTopcoatWhite = q_topcoatWhite*5.0, eeTopcoatMedium = q_topcoatMedium*5.0, eeTopcoatDark = q_topcoatDark*5.0;
+
+        const totSlabEE = (eeSlabCem*EE_CEMENT)+(eeSlabSand*EE_SAND)+(eeSlabGravel*EE_GRAVEL)+(eeSlabRebar*EE_REBAR)+(eeSlabWire*EE_WIRE);
+        const totFrameEE = (eeFrameCem*EE_CEMENT)+(eeFrameSand*EE_SAND)+(eeFrameGravel*EE_GRAVEL)+(eeFrameRebar*EE_REBAR)+(eeFrameWire*EE_WIRE);
+        const totRoofEE = (eeRoofSheet*EE_SHEET)+(eeRoofFraming*EE_REBAR)+(eeRoofScrews*EE_STEEL_LIGHT)+(eeCeilBoard*EE_FIBER)+(eeCeilFurr*EE_STEEL_LIGHT)+(eeCeilCarry*EE_STEEL_LIGHT);
+        const totWallEE_A = (eeWallCemA*EE_CEMENT)+(eeWallSandA*EE_SAND)+(eeWallGravelA*EE_GRAVEL)+(eeWallRebarA*EE_REBAR)+(eeWallWireA*EE_WIRE);
+        const totWallEE_B = (eeChb150*EE_CHB)+(eeChb100*EE_CHB)+(eeMortarCemB*EE_CEMENT)+(eeMortarSandB*EE_SAND)+(eeWallRebarB*EE_REBAR)+(eeWallWireB*EE_WIRE);
+        
+        const totFinishesEE = (eeSkim*EE_CEMENT) + (eePrimer*EE_PAINT_PRIMER) + (eeWaterproof*EE_WP) + 
+                              (eeTopcoatWhite*EE_PAINT_WHITE) + (eeTopcoatMedium*EE_PAINT_MEDIUM) + (eeTopcoatDark*EE_PAINT_DARK);
+
+        const grandTotalEE_A = totSlabEE + totFrameEE + totRoofEE + totWallEE_A + totFinishesEE;
+        const grandTotalEE_B = totSlabEE + totFrameEE + totRoofEE + totWallEE_B + totFinishesEE;
+
+        // --- TAB 1: HTML BOM REPORT ---
+        document.getElementById('tabBom').innerHTML = `
+            <div class="flex gap-4 mb-6">
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 flex-1 shadow-sm">
+                    <span class="text-xs font-bold text-blue-700 uppercase tracking-wide block mb-1">Total Floor Area</span>
+                    <span class="text-xl font-bold text-blue-900">${tf.toFixed(2)} m²</span>
+                </div>
+                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200 flex-1 shadow-sm">
+                    <span class="text-xs font-bold text-emerald-700 uppercase tracking-wide block mb-1">Total Net Wall Area</span>
+                    <span class="text-xl font-bold text-emerald-900">${tnw.toFixed(2)} m²</span>
+                </div>
+            </div>
+
+            <div><div class="border-b pb-2 mb-3"><h4 class="text-base font-bold text-slate-800">1. Concrete Floor Slab (100mm)</h4></div>
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Item</th><th class="border p-2">Qty</th><th class="border p-2">Unit</th></tr>
+            <tr><td class="border p-2">Slab Volume</td><td class="border p-2 font-bold">${sv.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">Portland Cement (40kg)</td><td class="border p-2 font-bold">${qc_slab}</td><td class="border p-2">bags</td></tr>
+            <tr><td class="border p-2">Sand</td><td class="border p-2 font-bold">${qs_slab.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">Gravel</td><td class="border p-2 font-bold">${qg_slab.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">10mm Rebar (6.0m)</td><td class="border p-2 font-bold">${qr_slab}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">#16 G.I. Tie Wire</td><td class="border p-2 font-bold">${qw_slab.toFixed(2)}</td><td class="border p-2">kg</td></tr>
+            </table></div>
+
+            <div><div class="border-b pb-2 mb-3"><h4 class="text-base font-bold text-slate-800">2. Structural Framing (Columns & Beams)</h4></div>
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Item</th><th class="border p-2">Qty</th><th class="border p-2">Unit</th></tr>
+            <tr><td class="border p-2">Unique Nodes (Columns)</td><td class="border p-2 font-bold">${fr.columnCount}</td><td class="border p-2">nodes</td></tr>
+            <tr><td class="border p-2">Total Concrete Vol</td><td class="border p-2 font-bold">${fr.totalFramingVol.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">Portland Cement (40kg)</td><td class="border p-2 font-bold">${fr.framingCem}</td><td class="border p-2">bags</td></tr>
+            <tr><td class="border p-2">Sand</td><td class="border p-2 font-bold">${fr.framingSand.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">Gravel</td><td class="border p-2 font-bold">${fr.framingGravel.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">10mm Rebar (6.0m)</td><td class="border p-2 font-bold">${fr.totalFramingRebarPcs}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">#16 G.I. Tie Wire</td><td class="border p-2 font-bold">${fr.framingWire.toFixed(2)}</td><td class="border p-2">kg</td></tr>
+            </table></div>
+            
+            <div><div class="border-b pb-2 mb-3"><h4 class="text-base font-bold text-slate-800">3. Roof & Ceiling Construction</h4></div>
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Item</th><th class="border p-2">Qty</th><th class="border p-2">Unit</th></tr>
+            <tr><td class="border p-2">Pre-Painted Roofing Sheet</td><td class="border p-2 font-bold">${q_rf.toFixed(2)}</td><td class="border p-2">m²</td></tr>
+            <tr><td class="border p-2">Roof Truss/Purlins (Steel)</td><td class="border p-2 font-bold">${q_rfkg.toFixed(2)}</td><td class="border p-2">kg</td></tr>
+            <tr><td class="border p-2">Tek Screws</td><td class="border p-2 font-bold">${q_rscrew}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">Fiber Cement Board (4x8)</td><td class="border p-2 font-bold">${q_cb}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">Metal Furring (5m)</td><td class="border p-2 font-bold">${q_cf}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">Carrying Channel (5m)</td><td class="border p-2 font-bold">${q_cc}</td><td class="border p-2">pcs</td></tr>
+            </table></div>
+
+            <div><div class="border-b pb-2 mb-3"><h4 class="text-base font-bold text-slate-800">4. Option A: Solid Concrete Wall</h4></div>
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Item</th><th class="border p-2">Qty</th><th class="border p-2">Unit</th></tr>
+            <tr><td class="border p-2">Concrete Volume</td><td class="border p-2 font-bold">${vSol.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">Portland Cement (40kg)</td><td class="border p-2 font-bold">${qc_wa}</td><td class="border p-2">bags</td></tr>
+            <tr><td class="border p-2">Sand</td><td class="border p-2 font-bold">${qs_wa.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">Gravel</td><td class="border p-2 font-bold">${qg_wa.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">10mm Rebar (6.0m)</td><td class="border p-2 font-bold">${qr_wa}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">#16 G.I. Tie Wire</td><td class="border p-2 font-bold">${qw_wa.toFixed(2)}</td><td class="border p-2">kg</td></tr>
+            </table></div>
+
+            <div><div class="border-b pb-2 mb-3"><h4 class="text-base font-bold text-slate-800">5. Option B: CHB Masonry Wall</h4></div>
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Item</th><th class="border p-2">Qty</th><th class="border p-2">Unit</th></tr>
+            <tr><td class="border p-2">150mm CHB</td><td class="border p-2 font-bold">${qc_150}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">100mm CHB</td><td class="border p-2 font-bold">${qc_100}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">Mortar Cement</td><td class="border p-2 font-bold">${qmc_wb}</td><td class="border p-2">bags</td></tr>
+            <tr><td class="border p-2">Mortar Sand</td><td class="border p-2 font-bold">${qms_wb.toFixed(2)}</td><td class="border p-2">m³</td></tr>
+            <tr><td class="border p-2">10mm Rebar (6.0m)</td><td class="border p-2 font-bold">${qr_wb}</td><td class="border p-2">pcs</td></tr>
+            <tr><td class="border p-2">#16 G.I. Tie Wire</td><td class="border p-2 font-bold">${qw_wb.toFixed(2)}</td><td class="border p-2">kg</td></tr>
+            </table></div>
+            
+            <div><div class="border-b pb-2 mb-3"><h4 class="text-base font-bold text-pink-800">6. Architectural Finishes (Multi-Color)</h4></div>
+            <table class="w-full border-collapse border border-pink-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-pink-100 text-pink-800"><th class="border border-pink-300 p-2">Item</th><th class="border border-pink-300 p-2">Qty</th><th class="border border-pink-300 p-2">Unit</th></tr>
+            <tr><td class="border border-pink-200 p-2">Wall/Ceiling Skimcoat (20kg)</td><td class="border border-pink-200 p-2 font-bold text-pink-700">${q_skim}</td><td class="border border-pink-200 p-2">bags</td></tr>
+            <tr><td class="border border-pink-200 p-2">Paint Primer (Latex)</td><td class="border border-pink-200 p-2 font-bold text-pink-700">${q_primer}</td><td class="border border-pink-200 p-2">gals</td></tr>
+            <tr><td class="border border-pink-200 p-2">Topcoat (White/Light, 2 Coats)</td><td class="border border-pink-200 p-2 font-bold text-pink-700">${q_topcoatWhite}</td><td class="border border-pink-200 p-2">gals</td></tr>
+            <tr><td class="border border-pink-200 p-2">Topcoat (Medium, 2 Coats)</td><td class="border border-pink-200 p-2 font-bold text-pink-700">${q_topcoatMedium}</td><td class="border border-pink-200 p-2">gals</td></tr>
+            <tr><td class="border border-pink-200 p-2">Topcoat (Dark, 3 Coats)</td><td class="border border-pink-200 p-2 font-bold text-pink-700">${q_topcoatDark}</td><td class="border border-pink-200 p-2">gals</td></tr>
+            <tr><td class="border border-pink-200 p-2">Liquid Elastomeric Waterproofing</td><td class="border border-pink-200 p-2 font-bold text-pink-700">${q_waterproof}</td><td class="border border-pink-200 p-2">gals</td></tr>
+            </table></div>
+        `;
+
+        // --- TAB 2: FULL COMPREHENSIVE EE REPORT ---
+        document.getElementById('tabEE').innerHTML = `
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg text-sm text-blue-900 mb-6 shadow-sm">
+            <strong>What is Embodied Energy?</strong> Primary energy consumed to extract, manufacture, and transport materials (Cradle-to-Gate). This report maps exact BOM quantities to their raw physical weight to calculate lifecycle energy impact.
+            <br/><br/>
+            <strong>Paint LCA Note:</strong> Light colors use energy-intensive $TiO_2$ (up to 55 MJ/kg). Darker colors have lower pigment EE factors (down to 35 MJ/kg) but often require a 3rd topcoat to achieve hiding opacity.
+            </div>
+
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Material Specification</th><th class="border p-2">BOM Qty</th><th class="border p-2">Conversion Eq.</th><th class="border p-2 text-blue-800">Weight (kg)</th><th class="border p-2">EE Factor (MJ/kg)</th><th class="border p-2">Total EE (MJ)</th></tr>
+            
+            <tr><td class="border p-2 font-bold bg-slate-50 text-slate-800" colspan="6">1. Concrete Floor Slab</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Portland Cement</td><td class="border p-2 font-medium">${qc_slab} bags</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 40.0 kg/bag</td><td class="border p-2 font-semibold text-blue-900">${eeSlabCem.toLocaleString()}</td><td class="border p-2">${EE_CEMENT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeSlabCem * EE_CEMENT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Sand</td><td class="border p-2 font-medium">${qs_slab.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1600 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeSlabSand.toLocaleString()}</td><td class="border p-2">${EE_SAND.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeSlabSand * EE_SAND).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Gravel</td><td class="border p-2 font-medium">${qg_slab.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1500 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeSlabGravel.toLocaleString()}</td><td class="border p-2">${EE_GRAVEL.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeSlabGravel * EE_GRAVEL).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">10mm Rebar</td><td class="border p-2 font-medium">${qr_slab} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 3.70 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeSlabRebar.toLocaleString()}</td><td class="border p-2">${EE_REBAR.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeSlabRebar * EE_REBAR).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">#16 Tie Wire</td><td class="border p-2 font-medium">${qw_slab.toFixed(2)} kg</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1.0 kg/kg</td><td class="border p-2 font-semibold text-blue-900">${eeSlabWire.toLocaleString()}</td><td class="border p-2">${EE_WIRE.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeSlabWire * EE_WIRE).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            
+            <tr><td class="border p-2 font-bold bg-slate-50 text-slate-800" colspan="6">2. Structural Framing</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Portland Cement</td><td class="border p-2 font-medium">${fr.framingCem} bags</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 40.0 kg/bag</td><td class="border p-2 font-semibold text-blue-900">${eeFrameCem.toLocaleString()}</td><td class="border p-2">${EE_CEMENT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeFrameCem * EE_CEMENT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Sand</td><td class="border p-2 font-medium">${fr.framingSand.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1600 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeFrameSand.toLocaleString()}</td><td class="border p-2">${EE_SAND.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeFrameSand * EE_SAND).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Gravel</td><td class="border p-2 font-medium">${fr.framingGravel.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1500 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeFrameGravel.toLocaleString()}</td><td class="border p-2">${EE_GRAVEL.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeFrameGravel * EE_GRAVEL).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">10mm Rebar</td><td class="border p-2 font-medium">${fr.totalFramingRebarPcs} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 3.70 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeFrameRebar.toLocaleString()}</td><td class="border p-2">${EE_REBAR.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeFrameRebar * EE_REBAR).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">#16 Tie Wire</td><td class="border p-2 font-medium">${fr.framingWire.toFixed(2)} kg</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1.0 kg/kg</td><td class="border p-2 font-semibold text-blue-900">${eeFrameWire.toLocaleString()}</td><td class="border p-2">${EE_WIRE.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeFrameWire * EE_WIRE).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            
+            <tr><td class="border p-2 font-bold bg-slate-50 text-slate-800" colspan="6">3. Roof & Ceiling Construction</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Roofing Sheet (0.4mm)</td><td class="border p-2 font-medium">${q_rf.toFixed(2)} m²</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 3.50 kg/m²</td><td class="border p-2 font-semibold text-blue-900">${eeRoofSheet.toLocaleString()}</td><td class="border p-2">${EE_SHEET.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeRoofSheet * EE_SHEET).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Steel Framing</td><td class="border p-2 font-medium">${q_rfkg.toFixed(2)} kg</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1.0 kg/kg</td><td class="border p-2 font-semibold text-blue-900">${eeRoofFraming.toLocaleString()}</td><td class="border p-2">${EE_REBAR.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeRoofFraming * EE_REBAR).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Tek Screws</td><td class="border p-2 font-medium">${q_rscrew} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 0.005 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeRoofScrews.toLocaleString()}</td><td class="border p-2">${EE_STEEL_LIGHT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeRoofScrews * EE_STEEL_LIGHT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Fiber Cement Board</td><td class="border p-2 font-medium">${q_cb} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 20.0 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeCeilBoard.toLocaleString()}</td><td class="border p-2">${EE_FIBER.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeCeilBoard * EE_FIBER).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Metal Furring</td><td class="border p-2 font-medium">${q_cf} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1.5 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeCeilFurr.toLocaleString()}</td><td class="border p-2">${EE_STEEL_LIGHT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeCeilFurr * EE_STEEL_LIGHT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Carrying Channel</td><td class="border p-2 font-medium">${q_cc} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 2.0 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeCeilCarry.toLocaleString()}</td><td class="border p-2">${EE_STEEL_LIGHT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeCeilCarry * EE_STEEL_LIGHT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+
+            <tr><td class="border p-2 font-bold bg-slate-50 text-slate-800" colspan="6">4. Option A: Solid Concrete Wall</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Portland Cement</td><td class="border p-2 font-medium">${qc_wa} bags</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 40.0 kg/bag</td><td class="border p-2 font-semibold text-blue-900">${eeWallCemA.toLocaleString()}</td><td class="border p-2">${EE_CEMENT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallCemA * EE_CEMENT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Sand</td><td class="border p-2 font-medium">${qs_wa.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1600 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeWallSandA.toLocaleString()}</td><td class="border p-2">${EE_SAND.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallSandA * EE_SAND).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Gravel</td><td class="border p-2 font-medium">${qg_wa.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1500 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeWallGravelA.toLocaleString()}</td><td class="border p-2">${EE_GRAVEL.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallGravelA * EE_GRAVEL).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">10mm Rebar</td><td class="border p-2 font-medium">${qr_wa} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 3.70 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeWallRebarA.toLocaleString()}</td><td class="border p-2">${EE_REBAR.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallRebarA * EE_REBAR).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">#16 Tie Wire</td><td class="border p-2 font-medium">${qw_wa.toFixed(2)} kg</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1.0 kg/kg</td><td class="border p-2 font-semibold text-blue-900">${eeWallWireA.toLocaleString()}</td><td class="border p-2">${EE_WIRE.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallWireA * EE_WIRE).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+
+            <tr><td class="border p-2 font-bold bg-slate-50 text-slate-800" colspan="6">5. Option B: CHB Masonry Wall</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Concrete Blocks</td><td class="border p-2 font-medium">150mm: ${qc_150}<br>100mm: ${qc_100}</td><td class="border p-2 text-slate-500 font-mono text-[10px]">(150mm × 12.0) + (100mm × 8.0)</td><td class="border p-2 font-semibold text-blue-900">${(eeChb150+eeChb100).toLocaleString()}</td><td class="border p-2">${EE_CHB.toFixed(2)}</td><td class="border p-2 font-semibold">${((eeChb150+eeChb100) * EE_CHB).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Mortar Cement</td><td class="border p-2 font-medium">${qmc_wb} bags</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 40.0 kg/bag</td><td class="border p-2 font-semibold text-blue-900">${eeMortarCemB.toLocaleString()}</td><td class="border p-2">${EE_CEMENT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeMortarCemB * EE_CEMENT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Mortar Sand</td><td class="border p-2 font-medium">${qms_wb.toFixed(2)} m³</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1600 kg/m³</td><td class="border p-2 font-semibold text-blue-900">${eeMortarSandB.toLocaleString()}</td><td class="border p-2">${EE_SAND.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeMortarSandB * EE_SAND).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">10mm Rebar</td><td class="border p-2 font-medium">${qr_wb} pcs</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 3.70 kg/pc</td><td class="border p-2 font-semibold text-blue-900">${eeWallRebarB.toLocaleString()}</td><td class="border p-2">${EE_REBAR.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallRebarB * EE_REBAR).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">#16 Tie Wire</td><td class="border p-2 font-medium">${qw_wb.toFixed(2)} kg</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 1.0 kg/kg</td><td class="border p-2 font-semibold text-blue-900">${eeWallWireB.toLocaleString()}</td><td class="border p-2">${EE_WIRE.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWallWireB * EE_WIRE).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            
+            <tr><td class="border p-2 font-bold bg-pink-50 text-pink-800" colspan="6">6. Architectural Finishes (Multi-Color)</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Wall/Ceiling Skimcoat</td><td class="border p-2 font-medium text-pink-700">${q_skim} bags</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 20.0 kg/bag</td><td class="border p-2 font-semibold text-pink-900">${eeSkim.toLocaleString()}</td><td class="border p-2">${EE_CEMENT.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeSkim * EE_CEMENT).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Paint Primer (Latex)</td><td class="border p-2 font-medium text-pink-700">${q_primer} gals</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 5.0 kg/gal</td><td class="border p-2 font-semibold text-pink-900">${eePrimer.toLocaleString()}</td><td class="border p-2">${EE_PAINT_PRIMER.toFixed(2)}</td><td class="border p-2 font-semibold">${(eePrimer * EE_PAINT_PRIMER).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Topcoat (White/Light)</td><td class="border p-2 font-medium text-pink-700">${q_topcoatWhite} gals</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 5.0 kg/gal</td><td class="border p-2 font-semibold text-pink-900">${eeTopcoatWhite.toLocaleString()}</td><td class="border p-2">${EE_PAINT_WHITE.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeTopcoatWhite * EE_PAINT_WHITE).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Topcoat (Medium)</td><td class="border p-2 font-medium text-pink-700">${q_topcoatMedium} gals</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 5.0 kg/gal</td><td class="border p-2 font-semibold text-pink-900">${eeTopcoatMedium.toLocaleString()}</td><td class="border p-2">${EE_PAINT_MEDIUM.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeTopcoatMedium * EE_PAINT_MEDIUM).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Topcoat (Dark)</td><td class="border p-2 font-medium text-pink-700">${q_topcoatDark} gals</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 5.0 kg/gal</td><td class="border p-2 font-semibold text-pink-900">${eeTopcoatDark.toLocaleString()}</td><td class="border p-2">${EE_PAINT_DARK.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeTopcoatDark * EE_PAINT_DARK).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+            <tr><td class="border p-2 pl-4 text-slate-600">Liquid Waterproofing</td><td class="border p-2 font-medium text-pink-700">${q_waterproof} gals</td><td class="border p-2 text-slate-500 font-mono text-[10px]">Qty × 5.0 kg/gal</td><td class="border p-2 font-semibold text-pink-900">${eeWaterproof.toLocaleString()}</td><td class="border p-2">${EE_WP.toFixed(2)}</td><td class="border p-2 font-semibold">${(eeWaterproof * EE_WP).toLocaleString(undefined, {maximumFractionDigits:2})}</td></tr>
+
+            <tr class="bg-indigo-100 font-bold text-indigo-900"><td class="border p-2 text-right" colspan="5">GRAND TOTAL (If using Option A Solid Wall):</td><td class="border p-2">${grandTotalEE_A.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MJ</td></tr>
+            <tr class="bg-emerald-100 font-bold text-emerald-900"><td class="border p-2 text-right" colspan="5">GRAND TOTAL (If using Option B CHB Wall):</td><td class="border p-2">${grandTotalEE_B.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} MJ</td></tr>
+            </table>
+        `;
+
+        document.getElementById('tabStd').innerHTML = `
+            <div class="space-y-6 text-sm text-slate-700">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p class="font-semibold text-blue-900">Engineering Reference Guide</p>
+                <p class="text-xs mt-1 text-blue-800">The formulas below demonstrate exactly how the CAD geometries are converted into the Live Bill of Materials using standard Philippine estimating practices (e.g., Max Fajardo construction constants for Class A mixtures and structural steel spacing).</p>
+            </div>
+
+            <div>
+                <h4 class="text-base font-bold text-slate-800 mb-2 border-b pb-2">1. CAD Polygon & Geometric Measurements</h4>
+                <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-2">
+                <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Measurement</th><th class="border p-2">Algorithm / Formula Used</th></tr>
+                <tr><td class="border p-2 font-semibold">Polygon Floor Area (m²)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Shoelace Formula: Area = 1/2 |Σ(x_i * y_i+1 - x_i+1 * y_i)|</td></tr>
+                <tr><td class="border p-2 font-semibold">Wall Segment Length (m)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Pythagorean Theorem: Length = √((x2 - x1)² + (y2 - y1)²)</td></tr>
+                <tr><td class="border p-2 font-semibold">Net Wall Area (m²)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Σ [ (Segment Length × Wall Height) - Assigned Openings ]</td></tr>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="text-base font-bold text-slate-800 mb-2 border-b pb-2 mt-4">2. Concrete Floor Slab (100mm Thickness)</h4>
+                <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-2">
+                <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Material</th><th class="border p-2">Formula & Estimating Constant</th></tr>
+                <tr><td class="border p-2 font-semibold">Volume (m³)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Floor Area × 0.10m thickness</td></tr>
+                <tr><td class="border p-2 font-semibold">Portland Cement (40kg)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Volume × 9.0 bags/m³ <span class="text-slate-500 font-sans text-[10px] ml-2">(Class A Mixture 1:2:4)</span></td></tr>
+                <tr><td class="border p-2 font-semibold">Sand</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Volume × 0.50 m³/m³</td></tr>
+                <tr><td class="border p-2 font-semibold">Gravel</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Volume × 1.00 m³/m³</td></tr>
+                <tr><td class="border p-2 font-semibold">10mm Rebar (6.0m)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Floor Area × 8.0m of steel per sq.m) ÷ 6.0m per piece</td></tr>
+                <tr><td class="border p-2 font-semibold">#16 Tie Wire</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Floor Area ÷ 100) × 2.0 kg</td></tr>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="text-base font-bold text-slate-800 mb-2 border-b pb-2 mt-4">3. Structural Framing (Columns & Beams)</h4>
+                <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-2">
+                <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Material</th><th class="border p-2">Formula & Estimating Constant</th></tr>
+                <tr><td class="border p-2 font-semibold">Concrete Volume (m³)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">[Nodes × (0.20×0.20×Height)] + [Net Perimeter × (0.20×0.30)]</td></tr>
+                <tr><td class="border p-2 font-semibold">Cement/Sand/Gravel</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Same Class A mixture constants as slab (9.0, 0.50, 1.00)</td></tr>
+                <tr><td class="border p-2 font-semibold">10mm Rebar (6.0m)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">[(Nodes × (Height × 4 + 1.0)) + (Perimeter × 4.0 + 2.0)] ÷ 6.0m</td></tr>
+                <tr><td class="border p-2 font-semibold">#16 Tie Wire</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">[Nodes × (Height/0.20 spacing) × 0.8] ÷ 53m/kg</td></tr>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="text-base font-bold text-slate-800 mb-2 border-b pb-2 mt-4">4. Wall Systems (Option A & Option B)</h4>
+                <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-2">
+                <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Material</th><th class="border p-2">Formula & Estimating Constant</th></tr>
+                <tr><td class="border p-2 font-semibold">Solid Concrete Vol.</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Net 150mm Area × 0.15) + (Net 100mm Area × 0.10)</td></tr>
+                <tr><td class="border p-2 font-semibold">CHB Count (pcs)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Net Wall Area × 12.5 pcs/m²</td></tr>
+                <tr><td class="border p-2 font-semibold">CHB Mortar Cement</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Net 150 Area × 0.792) + (Net 100 Area × 0.533) <span class="text-slate-500 font-sans text-[10px] ml-2">(Laying + Plaster)</span></td></tr>
+                <tr><td class="border p-2 font-semibold">CHB Mortar Sand</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Net 150 Area × 0.084) + (Net 100 Area × 0.043)</td></tr>
+                <tr><td class="border p-2 font-semibold">Wall Rebar (10mm)</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Total Net Wall Area × 2.93m) ÷ 6.0m <span class="text-slate-500 font-sans text-[10px] ml-2">(Spacing: Vert 0.60m, Horiz 3 layers)</span></td></tr>
+                </table>
+            </div>
+
+            <div>
+                <h4 class="text-base font-bold text-slate-800 mb-2 border-b pb-2 mt-4">5. Roof, Ceiling & Architectural Finishes</h4>
+                <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-2">
+                <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Material</th><th class="border p-2">Formula & Estimating Constant</th></tr>
+                <tr><td class="border p-2 font-semibold">Roof Framing Steel</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Roof Area × 12.0 kg/m²</td></tr>
+                <tr><td class="border p-2 font-semibold">Fiber Cement Board</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">(Ceiling Area ÷ 2.88m²) × 1.10 <span class="text-slate-500 font-sans text-[10px] ml-2">(Includes 10% Waste)</span></td></tr>
+                <tr><td class="border p-2 font-semibold">Ceiling Furring</td><td class="border p-2 font-mono text-blue-800 bg-slate-50 p-1 rounded">Ceiling Area × 0.60 pcs/m²</td></tr>
+                <tr><td class="border p-2 font-semibold">Wall/Ceiling Skimcoat</td><td class="border p-2 font-mono text-pink-800 bg-pink-50 p-1 rounded">Total Painted Area (Walls×2 + Ceil) ÷ 20.0 m² / bag</td></tr>
+                <tr><td class="border p-2 font-semibold">Latex Primer Paint</td><td class="border p-2 font-mono text-pink-800 bg-pink-50 p-1 rounded">Total Painted Area ÷ 30.0 m² / gal</td></tr>
+                <tr><td class="border p-2 font-semibold">Topcoat (White/Med)</td><td class="border p-2 font-mono text-pink-800 bg-pink-50 p-1 rounded">(Area × 2 Coats) ÷ 30.0 m² / gal</td></tr>
+                <tr><td class="border p-2 font-semibold">Topcoat (Dark)</td><td class="border p-2 font-mono text-pink-800 bg-pink-50 p-1 rounded">(Area × 3 Coats) ÷ 30.0 m² / gal</td></tr>
+                <tr><td class="border p-2 font-semibold">Liquid Waterproofing</td><td class="border p-2 font-mono text-pink-800 bg-pink-50 p-1 rounded">Total Waterproofed Area ÷ 4.0 m² / gal</td></tr>
+                </table>
+            </div>
+
+            <div>
+            <h4 class="text-base font-bold text-slate-800 mb-2 border-b pb-2 mt-6">Part III: LCA Material Intensity Constants (ISO 14040)</h4>
+            <table class="w-full border-collapse border border-slate-300 text-left text-xs bg-white shadow-sm mb-6">
+            <tr class="bg-slate-200 text-slate-700"><th class="border p-2">Material</th><th class="border p-2">Density / Standard Unit Assumed</th><th class="border p-2">Base EE Intensity (MJ/kg)</th></tr>
+            <tr><td class="border p-2 font-semibold">Portland/Masonry Cement</td><td class="border p-2">40.0 kg per standard bag</td><td class="border p-2 font-bold text-blue-800">5.50 MJ / kg</td></tr>
+            <tr><td class="border p-2 font-semibold">Sand / Gravel</td><td class="border p-2">1,600 kg / 1,500 kg per m³</td><td class="border p-2 font-bold text-blue-800">0.10 MJ / kg</td></tr>
+            <tr><td class="border p-2 font-semibold">Steel Rebar (10mm, 6m)</td><td class="border p-2">3.70 kg per 6.0m length piece</td><td class="border p-2 font-bold text-blue-800">24.00 MJ / kg</td></tr>
+            <tr><td class="border p-2 font-semibold">G.I. Tie Wire (#16)</td><td class="border p-2">1.0 kg (direct mass measurement)</td><td class="border p-2 font-bold text-blue-800">30.00 MJ / kg</td></tr>
+            <tr><td class="border p-2 font-semibold">CHB (150mm / 100mm)</td><td class="border p-2">12.0 kg / 8.0 kg per piece</td><td class="border p-2 font-bold text-blue-800">2.00 MJ / kg</td></tr>
+            <tr><td class="border p-2 font-semibold">G.I. Roofing Sheet (0.4mm)</td><td class="border p-2">3.50 kg per m²</td><td class="border p-2 font-bold text-blue-800">35.00 MJ / kg</td></tr>
+            <tr><td class="border p-2 font-semibold">Paint (Pigment LCA)</td><td class="border p-2">~5.0 kg per gallon equivalent</td><td class="border p-2 font-bold text-pink-800">White: 55, Med: 45, Dark: 35 MJ/kg</td></tr>
+            <tr><td class="border p-2 font-semibold">Elastomeric Waterproofing</td><td class="border p-2">~5.0 kg per gallon equivalent</td><td class="border p-2 font-bold text-pink-800">50.00 MJ / kg</td></tr>
+            </table>
+            </div>
+            </div>
+        `;
+
+        document.getElementById('reportModal').classList.replace('hidden', 'flex');
+        switchTab('tabBom');
+    }
+
+    function exportToExcel() {
+        if (rooms.length === 0) { alert("Please draw a room or wall first before exporting to Excel."); return; }
+
+        try {
+            if (typeof XLSX === 'undefined') {
+                alert("Excel library is loading or blocked by your browser. Please check your internet connection.");
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            // 1. CAD Room Summary
+            let wsCADData = [["ACFV Engineering - CAD Summary Report"], ["Generated via Web Plotter System"], []];
+            wsCADData.push(["Name", "Type", "Floor Area (m²)", "Wall Height (m)", "Gross Perimeter (m)", "Total Openings (m²)", "Net Wall Area (m²)", "Waterproofed?"]);
+            let totalFA = 0, totalPerim = 0, totalNet = 0, totalOpen = 0, totalWpArea = 0;
+            rooms.forEach(r => {
+                let rOpen = 0; r.edges.forEach(e => { if(e.type !== 'none') rOpen += e.openings; });
+                totalFA += r.floorArea; totalPerim += r.perimeter; totalNet += r.totalNetWallArea; totalOpen += rOpen;
+                if(r.isWaterproof && !r.isStandalone) totalWpArea += r.floorArea;
+                
+                let rType = r.isStandalone ? "Wall Only" : "Room";
+                wsCADData.push([r.name, rType, parseFloat(r.floorArea.toFixed(2)), parseFloat(r.wallHeight.toFixed(2)), parseFloat(r.perimeter.toFixed(2)), parseFloat(rOpen.toFixed(2)), parseFloat(r.totalNetWallArea.toFixed(2)), (r.isWaterproof && !r.isStandalone) ? "Yes" : "No"]);
+            });
+            wsCADData.push([]); wsCADData.push(["TOTALS", "", parseFloat(totalFA.toFixed(2)), "", parseFloat(totalPerim.toFixed(2)), parseFloat(totalOpen.toFixed(2)), parseFloat(totalNet.toFixed(2)), ""]);
+            const wsCAD = XLSX.utils.aoa_to_sheet(wsCADData);
+            wsCAD['!cols'] = [{wch: 25}, {wch: 15}, {wch: 18}, {wch: 15}, {wch: 18}, {wch: 18}, {wch: 18}, {wch: 15}];
+            XLSX.utils.book_append_sheet(wb, wsCAD, "CAD Elements Summary");
+
+            // 2. Wall Segments Detail
+            let wsEdgeData = [["Wall Segment Detail Breakdown"], []];
+            wsEdgeData.push(["Element Name", "Segment ID", "Length (m)", "Height (m)", "Type", "Color", "Doors (qty)", "Windows (qty)", "Custom (m²)", "Total Openings (m²)", "Net Area (m²)"]);
+            rooms.forEach(r => {
+                r.edges.forEach((e, idx) => {
+                    let eGross = e.length * r.wallHeight;
+                    let eNet = e.type === 'none' ? 0 : Math.max(0, eGross - e.openings);
+                    wsEdgeData.push([r.name, "Wall " + (idx+1), parseFloat(e.length.toFixed(2)), parseFloat(r.wallHeight.toFixed(2)), e.type === 'none' ? "Virtual" : e.type+"mm", e.paintColor, e.doors||0, e.windows||0, parseFloat((e.customOpenings||0).toFixed(2)), parseFloat(e.openings.toFixed(2)), parseFloat(eNet.toFixed(2))]);
+                });
+            });
+            const wsEdge = XLSX.utils.aoa_to_sheet(wsEdgeData);
+            wsEdge['!cols'] = [{wch: 20}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 15}, {wch: 20}, {wch: 15}];
+            XLSX.utils.book_append_sheet(wb, wsEdge, "Wall Segments");
+
+            // RECALCULATE GLOBAL VARIABLES FOR EXPORT
+            let tf = totalFA, tnw = totalNet, n150 = 0, n100 = 0;
+            let paintWhiteWall = 0, paintMediumWall = 0, paintDarkWall = 0;
+
+            rooms.forEach(r => {
+                r.edges.forEach(e => {
+                    if(e.type !== 'none') {
+                        let eNet = Math.max(0, (e.length * r.wallHeight) - e.openings);
+                        if(e.type === '150') n150 += eNet;
+                        if(e.type === '100') n100 += eNet;
+
+                        if (e.paintColor === 'medium') paintMediumWall += eNet;
+                        else if (e.paintColor === 'dark') paintDarkWall += eNet;
+                        else paintWhiteWall += eNet;
+                    }
+                });
+            });
+
+            const sv = tf*0.1, fr = calculateFraming(), vSol = (n150*0.15)+(n100*0.1);
+            const qc_slab=Math.ceil(sv*9), qs_slab=sv*0.5, qg_slab=sv*1, qr_slab=Math.ceil((tf*8)/6), qw_slab=(tf/100)*2;
+            const rfArea = parseFloat(document.getElementById('roofAreaInput').value)||0, clArea = parseFloat(document.getElementById('ceilAreaInput').value)||0;
+            const q_rf=rfArea, q_rfkg=rfArea*12, q_rscrew=Math.ceil(rfArea*12), q_cb=Math.ceil((clArea/2.88)*1.1), q_cf=Math.ceil(clArea*0.6), q_cc=Math.ceil(clArea*0.25);
+            const qc_wa=Math.ceil(vSol*9), qs_wa=vSol*0.5, qg_wa=vSol*1, qr_wa=Math.ceil((tnw*10)/6), qw_wa=(tnw/100)*3;
+            const qc_150=Math.ceil(n150*12.5), qc_100=Math.ceil(n100*12.5), qmc_wb=Math.ceil(n150*0.792+n100*0.533), qms_wb=n150*0.084+n100*0.043, qr_wb=Math.ceil((tnw*2.93)/6), qw_wb=(tnw/100)*1.5;
+
+            // Dynamic Paint logic for Excel
+            const totalWhiteArea = clArea + (paintWhiteWall * 2);
+            const totalMediumArea = (paintMediumWall * 2);
+            const totalDarkArea = (paintDarkWall * 2);
+            const totalPaintArea = totalWhiteArea + totalMediumArea + totalDarkArea;
+
+            const q_skim = Math.ceil(totalPaintArea / 20);
+            const q_primer = Math.ceil(totalPaintArea / 30);
+            const q_topcoatWhite = Math.ceil((totalWhiteArea * 2) / 30);
+            const q_topcoatMedium = Math.ceil((totalMediumArea * 2) / 30);
+            const q_topcoatDark = Math.ceil((totalDarkArea * 3) / 30);
+            const q_waterproof = Math.ceil(totalWpArea / 4);
+
+            // 3. BOM Breakdown
+            let wsBomData = [
+                ["ACFV Construction & Engineering Design Inc."], ["Engineering Bill of Materials Report"], [],
+                ["1. Concrete Floor Slab (100mm)"], ["Item", "Qty", "Unit", "Computation Formula"],
+                ["Slab Volume", parseFloat(sv.toFixed(2)), "m³", `Total Floor Area (${tf.toFixed(2)}) × 0.10m thickness`],
+                ["Portland Cement (40kg)", qc_slab, "bags", `Volume (${sv.toFixed(2)}) × 9.0 bags/m³`],
+                ["Sand", parseFloat(qs_slab.toFixed(2)), "m³", `Volume (${sv.toFixed(2)}) × 0.50 m³/m³`],
+                ["Gravel", parseFloat(qg_slab.toFixed(2)), "m³", `Volume (${sv.toFixed(2)}) × 1.00 m³/m³`],
+                ["10mm Rebar (6.0m)", qr_slab, "pcs", `(Floor Area (${tf.toFixed(2)}) × 8.0m) / 6.0m`],
+                ["#16 G.I. Tie Wire", parseFloat(qw_slab.toFixed(2)), "kg", `(Floor Area (${tf.toFixed(2)}) / 100) × 2.0 kg`], [],
+                
+                ["2. Structural Framing (Columns & Beams)"], ["Item", "Qty", "Unit", "Computation Formula"],
+                ["Unique Nodes (Columns)", fr.columnCount, "nodes", "Deduplicated corner nodes mapped to max wall height"],
+                ["Total Concrete Vol", parseFloat(fr.totalFramingVol.toFixed(2)), "m³", "Cols (Dynamic Height) + Beams Vol"],
+                ["Portland Cement (40kg)", fr.framingCem, "bags", "Total Vol × 9.0 bags/m³"],
+                ["Sand", parseFloat(fr.framingSand.toFixed(2)), "m³", "Total Vol × 0.50 m³/m³"],
+                ["Gravel", parseFloat(fr.framingGravel.toFixed(2)), "m³", "Total Vol × 1.00 m³/m³"],
+                ["10mm Rebar (6.0m)", fr.totalFramingRebarPcs, "pcs", "Calculated based on framing perimeter & node heights"],
+                ["#16 G.I. Tie Wire", parseFloat(fr.framingWire.toFixed(2)), "kg", "Calculated based on framing length & node heights"], [],
+                
+                ["3. Roof & Ceiling Construction"], ["Item", "Qty", "Unit", "Computation Formula"],
+                ["Pre-Painted Roofing Sheet", parseFloat(q_rf.toFixed(2)), "m²", "Roof Area Input"],
+                ["Roof Truss/Purlins (Steel)", parseFloat(q_rfkg.toFixed(2)), "kg", "Roof Area × 12.0 kg/m²"],
+                ["Tek Screws", q_rscrew, "pcs", "Roof Area × 12.0 pcs/m²"],
+                ["Fiber Cement Board (4x8)", q_cb, "pcs", `(Ceil Area (${clArea}) / 2.88) × 1.10 waste`],
+                ["Metal Furring (5m)", q_cf, "pcs", "Ceil Area × 0.60 pcs/m²"],
+                ["Carrying Channel (5m)", q_cc, "pcs", "Ceil Area × 0.25 pcs/m²"], [],
+                
+                ["4. Option A: Solid Concrete Wall"], ["Item", "Qty", "Unit", "Computation Formula"],
+                ["Concrete Volume", parseFloat(vSol.toFixed(2)), "m³", "(Net 150 Area × 0.15) + (Net 100 Area × 0.10)"],
+                ["Portland Cement (40kg)", qc_wa, "bags", "Volume × 9.0 bags/m³"],
+                ["Sand", parseFloat(qs_wa.toFixed(2)), "m³", "Volume × 0.50 m³/m³"],
+                ["Gravel", parseFloat(qg_wa.toFixed(2)), "m³", "Volume × 1.00 m³/m³"],
+                ["10mm Rebar (6.0m)", qr_wa, "pcs", `(Net Wall Area (${tnw.toFixed(2)}) × 10.0m) / 6.0m`],
+                ["#16 G.I. Tie Wire", parseFloat(qw_wa.toFixed(2)), "kg", `(Net Wall Area (${tnw.toFixed(2)}) / 100) × 3.0 kg`], [],
+                
+                ["5. Option B: CHB Masonry Wall"], ["Item", "Qty", "Unit", "Computation Formula"],
+                ["150mm CHB", qc_150, "pcs", "Net 150mm Area × 12.5 pcs/m²"],
+                ["100mm CHB", qc_100, "pcs", "Net 100mm Area × 12.5 pcs/m²"],
+                ["Mortar Cement", qmc_wb, "bags", "(Net 150 Area × 0.792) + (Net 100 Area × 0.533)"],
+                ["Mortar Sand", parseFloat(qms_wb.toFixed(2)), "m³", "(Net 150 Area × 0.084) + (Net 100 Area × 0.043)"],
+                ["10mm Rebar (6.0m)", qr_wb, "pcs", `(Net Wall Area (${tnw.toFixed(2)}) × 2.93m) / 6.0m`],
+                ["#16 G.I. Tie Wire", parseFloat(qw_wb.toFixed(2)), "kg", `(Net Wall Area (${tnw.toFixed(2)}) / 100) × 1.5 kg`], [],
+
+                ["6. Architectural Finishes (Multi-Color)"], ["Item", "Qty", "Unit", "Computation Formula"],
+                ["Wall/Ceiling Skimcoat (20kg)", q_skim, "bags", `Total Painted Area (${totalPaintArea.toFixed(1)}) / 20.0 m² per bag`],
+                ["Paint Primer (Latex)", q_primer, "gals", `Total Painted Area (${totalPaintArea.toFixed(1)}) / 30.0 m² per gal`],
+                ["Topcoat (White/Light, 2 Coats)", q_topcoatWhite, "gals", `(White Area (${totalWhiteArea.toFixed(1)}) × 2 Coats) / 30.0 m² per gal`],
+                ["Topcoat (Medium, 2 Coats)", q_topcoatMedium, "gals", `(Medium Area (${totalMediumArea.toFixed(1)}) × 2 Coats) / 30.0 m² per gal`],
+                ["Topcoat (Dark, 3 Coats)", q_topcoatDark, "gals", `(Dark Area (${totalDarkArea.toFixed(1)}) × 3 Coats) / 30.0 m² per gal`],
+                ["Liquid Waterproofing", q_waterproof, "gals", `Total Waterproofed Area (${totalWpArea.toFixed(1)}) / 4.0 m² per gal`]
+            ];
+            const wsBom = XLSX.utils.aoa_to_sheet(wsBomData);
+            wsBom['!cols'] = [{wch: 35}, {wch: 15}, {wch: 10}, {wch: 55}];
+            XLSX.utils.book_append_sheet(wb, wsBom, "BOM Report");
+
+            // 4. Embodied Energy (LCA)
+            const EE_CEMENT = 5.50, EE_SAND = 0.10, EE_GRAVEL = 0.10, EE_REBAR = 24.00, EE_WIRE = 30.00;
+            const EE_CHB = 2.00, EE_SHEET = 35.00, EE_FIBER = 9.50, EE_STEEL_LIGHT = 30.00;
+            const EE_WP = 50.00;
+            const EE_PAINT_PRIMER = 55.00; 
+            const EE_PAINT_WHITE = 55.00, EE_PAINT_MEDIUM = 45.00, EE_PAINT_DARK = 35.00; 
+            
+            const eeSlabCem = qc_slab*40, eeSlabSand = qs_slab*1600, eeSlabGravel = qg_slab*1500, eeSlabRebar = qr_slab*3.7, eeSlabWire = qw_slab*1.0;
+            const eeFrameCem = fr.framingCem*40, eeFrameSand = fr.framingSand*1600, eeFrameGravel = fr.framingGravel*1500, eeFrameRebar = fr.totalFramingRebarPcs*3.7, eeFrameWire = fr.framingWire*1.0;
+            const eeRoofSheet = q_rf*3.5, eeRoofFraming = q_rfkg, eeRoofScrews = q_rscrew*0.005, eeCeilBoard = q_cb*20, eeCeilFurr = q_cf*1.5, eeCeilCarry = q_cc*2.0;
+            const eeWallCemA = qc_wa*40, eeWallSandA = qs_wa*1600, eeWallGravelA = qg_wa*1500, eeWallRebarA = qr_wa*3.7, eeWallWireA = qw_wa*1.0;
+            const eeChb150 = qc_150*12.0, eeChb100 = qc_100*8.0, eeMortarCemB = qmc_wb*40, eeMortarSandB = qms_wb*1600, eeWallRebarB = qr_wb*3.7, eeWallWireB = qw_wb*1.0;
+            
+            const eeSkim = q_skim*20.0, eePrimer = q_primer*5.0, eeWaterproof = q_waterproof*5.0;
+            const eeTopcoatWhite = q_topcoatWhite*5.0, eeTopcoatMedium = q_topcoatMedium*5.0, eeTopcoatDark = q_topcoatDark*5.0;
+
+            const totSlabEE = (eeSlabCem*EE_CEMENT)+(eeSlabSand*EE_SAND)+(eeSlabGravel*EE_GRAVEL)+(eeSlabRebar*EE_REBAR)+(eeSlabWire*EE_WIRE);
+            const totFrameEE = (eeFrameCem*EE_CEMENT)+(eeFrameSand*EE_SAND)+(eeFrameGravel*EE_GRAVEL)+(eeFrameRebar*EE_REBAR)+(eeFrameWire*EE_WIRE);
+            const totRoofEE = (eeRoofSheet*EE_SHEET)+(eeRoofFraming*EE_REBAR)+(eeRoofScrews*EE_STEEL_LIGHT)+(eeCeilBoard*EE_FIBER)+(eeCeilFurr*EE_STEEL_LIGHT)+(eeCeilCarry*EE_STEEL_LIGHT);
+            const totWallEE_A = (eeWallCemA*EE_CEMENT)+(eeWallSandA*EE_SAND)+(eeWallGravelA*EE_GRAVEL)+(eeWallRebarA*EE_REBAR)+(eeWallWireA*EE_WIRE);
+            const totWallEE_B = (eeChb150*EE_CHB)+(eeChb100*EE_CHB)+(eeMortarCemB*EE_CEMENT)+(eeMortarSandB*EE_SAND)+(eeWallRebarB*EE_REBAR)+(eeWallWireB*EE_WIRE);
+            
+            const totFinishesEE = (eeSkim*EE_CEMENT) + (eePrimer*EE_PAINT_PRIMER) + (eeWaterproof*EE_WP) + 
+                                  (eeTopcoatWhite*EE_PAINT_WHITE) + (eeTopcoatMedium*EE_PAINT_MEDIUM) + (eeTopcoatDark*EE_PAINT_DARK);
+
+            const grandTotalEE_A = totSlabEE + totFrameEE + totRoofEE + totWallEE_A + totFinishesEE;
+            const grandTotalEE_B = totSlabEE + totFrameEE + totRoofEE + totWallEE_B + totFinishesEE;
+
+            let wsEEData = [
+                ["ACFV Engineering - Embodied Energy (LCA) Report"], ["Primary energy consumed to extract, manufacture, and transport materials (Cradle-to-Gate)."], [],
+                ["Material Specification", "BOM Qty", "Conversion Eq.", "Weight (kg)", "EE Factor (MJ/kg)", "Total EE (MJ)"],
+                ["1. Concrete Floor Slab"],
+                ["Portland Cement", `${qc_slab} bags`, "Qty × 40.0 kg/bag", eeSlabCem, EE_CEMENT, eeSlabCem*EE_CEMENT],
+                ["Sand", `${qs_slab.toFixed(2)} m³`, "Qty × 1600 kg/m³", eeSlabSand, EE_SAND, eeSlabSand*EE_SAND],
+                ["Gravel", `${qg_slab.toFixed(2)} m³`, "Qty × 1500 kg/m³", eeSlabGravel, EE_GRAVEL, eeSlabGravel*EE_GRAVEL],
+                ["10mm Rebar", `${qr_slab} pcs`, "Qty × 3.70 kg/pc", eeSlabRebar, EE_REBAR, eeSlabRebar*EE_REBAR],
+                ["#16 Tie Wire", `${qw_slab.toFixed(2)} kg`, "Qty × 1.0 kg/kg", eeSlabWire, EE_WIRE, eeSlabWire*EE_WIRE], [],
+                ["2. Structural Framing (Dynamic Column Heights)"],
+                ["Portland Cement", `${fr.framingCem} bags`, "Qty × 40.0 kg/bag", eeFrameCem, EE_CEMENT, eeFrameCem*EE_CEMENT],
+                ["Sand", `${fr.framingSand.toFixed(2)} m³`, "Qty × 1600 kg/m³", eeFrameSand, EE_SAND, eeFrameSand*EE_SAND],
+                ["Gravel", `${fr.framingGravel.toFixed(2)} m³`, "Qty × 1500 kg/m³", eeFrameGravel, EE_GRAVEL, eeFrameGravel*EE_GRAVEL],
+                ["10mm Rebar", `${fr.totalFramingRebarPcs} pcs`, "Qty × 3.70 kg/pc", eeFrameRebar, EE_REBAR, eeFrameRebar*EE_REBAR],
+                ["#16 Tie Wire", `${fr.framingWire.toFixed(2)} kg`, "Qty × 1.0 kg/kg", eeFrameWire, EE_WIRE, eeFrameWire*EE_WIRE], [],
+                ["3. Roof & Ceiling Construction"],
+                ["Roofing Sheet (0.4mm)", `${q_rf.toFixed(2)} m²`, "Qty × 3.50 kg/m²", eeRoofSheet, EE_SHEET, eeRoofSheet*EE_SHEET],
+                ["Steel Framing", `${q_rfkg.toFixed(2)} kg`, "Qty × 1.0 kg/kg", eeRoofFraming, EE_REBAR, eeRoofFraming*EE_REBAR],
+                ["Tek Screws", `${q_rscrew} pcs`, "Qty × 0.005 kg/pc", eeRoofScrews, EE_STEEL_LIGHT, eeRoofScrews*EE_STEEL_LIGHT],
+                ["Fiber Cement Board", `${q_cb} pcs`, "Qty × 20.0 kg/pc", eeCeilBoard, EE_FIBER, eeCeilBoard*EE_FIBER],
+                ["Metal Furring", `${q_cf} pcs`, "Qty × 1.5 kg/pc", eeCeilFurr, EE_STEEL_LIGHT, eeCeilFurr*EE_STEEL_LIGHT],
+                ["Carrying Channel", `${q_cc} pcs`, "Qty × 2.0 kg/pc", eeCeilCarry, EE_STEEL_LIGHT, eeCeilCarry*EE_STEEL_LIGHT], [],
+                ["4. Option A: Solid Concrete Wall"],
+                ["Portland Cement", `${qc_wa} bags`, "Qty × 40.0 kg/bag", eeWallCemA, EE_CEMENT, eeWallCemA*EE_CEMENT],
+                ["Sand", `${qs_wa.toFixed(2)} m³`, "Qty × 1600 kg/m³", eeWallSandA, EE_SAND, eeWallSandA*EE_SAND],
+                ["Gravel", `${qg_wa.toFixed(2)} m³`, "Qty × 1500 kg/m³", eeWallGravelA, EE_GRAVEL, eeWallGravelA*EE_GRAVEL],
+                ["10mm Rebar", `${qr_wa} pcs`, "Qty × 3.70 kg/pc", eeWallRebarA, EE_REBAR, eeWallRebarA*EE_REBAR],
+                ["#16 Tie Wire", `${qw_wa.toFixed(2)} kg`, "Qty × 1.0 kg/kg", eeWallWireA, EE_WIRE, eeWallWireA*EE_WIRE], [],
+                ["5. Option B: CHB Masonry Wall"],
+                ["Concrete Blocks", `${qc_150+qc_100} pcs`, "150mm×12.0 + 100mm×8.0", eeChb150+eeChb100, EE_CHB, (eeChb150+eeChb100)*EE_CHB],
+                ["Mortar Cement", `${qmc_wb} bags`, "Qty × 40.0 kg/bag", eeMortarCemB, EE_CEMENT, eeMortarCemB*EE_CEMENT],
+                ["Mortar Sand", `${qms_wb.toFixed(2)} m³`, "Qty × 1600 kg/m³", eeMortarSandB, EE_SAND, eeMortarSandB*EE_SAND],
+                ["10mm Rebar", `${qr_wb} pcs`, "Qty × 3.70 kg/pc", eeWallRebarB, EE_REBAR, eeWallRebarB*EE_REBAR],
+                ["#16 Tie Wire", `${qw_wb.toFixed(2)} kg`, "Qty × 1.0 kg/kg", eeWallWireB, EE_WIRE, eeWallWireB*EE_WIRE], [],
+                ["6. Architectural Finishes"],
+                ["Wall/Ceiling Skimcoat", `${q_skim} bags`, "Qty × 20.0 kg/bag", eeSkim, EE_CEMENT, eeSkim*EE_CEMENT],
+                ["Paint Primer (Latex)", `${q_primer} gals`, "Qty × 5.0 kg/gal", eePrimer, EE_PAINT_PRIMER, eePrimer*EE_PAINT_PRIMER],
+                ["Topcoat (White/Light)", `${q_topcoatWhite} gals`, "Qty × 5.0 kg/gal", eeTopcoatWhite, EE_PAINT_WHITE, eeTopcoatWhite*EE_PAINT_WHITE],
+                ["Topcoat (Medium)", `${q_topcoatMedium} gals`, "Qty × 5.0 kg/gal", eeTopcoatMedium, EE_PAINT_MEDIUM, eeTopcoatMedium*EE_PAINT_MEDIUM],
+                ["Topcoat (Dark)", `${q_topcoatDark} gals`, "Qty × 5.0 kg/gal", eeTopcoatDark, EE_PAINT_DARK, eeTopcoatDark*EE_PAINT_DARK],
+                ["Liquid Waterproofing", `${q_waterproof} gals`, "Qty × 5.0 kg/gal", eeWaterproof, EE_WP, eeWaterproof*EE_WP], [],
+                ["GRAND TOTALS (MJ)"],
+                ["Total if using Option A (Solid Wall)", "", "", "", "", totSlabEE + totFrameEE + totRoofEE + totWallEE_A + totFinishesEE],
+                ["Total if using Option B (CHB Wall)", "", "", "", "", totSlabEE + totFrameEE + totRoofEE + totWallEE_B + totFinishesEE]
+            ];
+            const wsEE = XLSX.utils.aoa_to_sheet(wsEEData);
+            wsEE['!cols'] = [{wch: 35}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 18}, {wch: 18}];
+            XLSX.utils.book_append_sheet(wb, wsEE, "Embodied Energy");
+
+            XLSX.writeFile(wb, "ACFV_Engineering_Report.xlsx");
+
+        } catch (error) {
+            console.error("Export Error: ", error);
+            alert("An error occurred during Excel export. Please make sure the SheetJS library is loaded properly.");
+        }
+    }
+</script>
+</body>
+</html>
